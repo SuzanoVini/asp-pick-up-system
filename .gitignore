@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Next.js
+.next/
+out/
+
+# Build
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI/session planning artifacts and private context
+docs/superpowers/
+docs/ai/
+docs/private-context/
+.claude-scratch/
+*.scratch.md
+asp-pickup-integration-context.md
+asp-pickup-bootstrap-prompt.md
+
+# Superpowers brainstorm sessions
+.superpowers/
+
+# Claude Code internal
+.claude/
+
+# Apps Script source files (private reference, not part of the app)
+*.gs
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+coverage/
+
+# Supabase local
+supabase/.temp/
