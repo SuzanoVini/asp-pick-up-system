@@ -26,6 +26,7 @@ docs/private-context/
 *.scratch.md
 asp-pickup-integration-context.md
 asp-pickup-bootstrap-prompt.md
+HANDOFF.md
 
 # Superpowers brainstorm sessions
 .superpowers/
