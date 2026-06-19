@@ -14,6 +14,9 @@ CREATE TABLE asp_route_stops (
   school_address_snapshot text,
   dismissal_time_snapshot time,
   created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid REFERENCES auth.users(id),
+  updated_by uuid REFERENCES auth.users(id),
   UNIQUE (route_id, student_id),
   UNIQUE (route_id, seat_number)
 );

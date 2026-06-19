@@ -12,6 +12,8 @@ CREATE TABLE asp_daily_attendance (
   materialized_at timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid REFERENCES auth.users(id),
+  updated_by uuid REFERENCES auth.users(id),
   UNIQUE (student_id, date)
 );
 

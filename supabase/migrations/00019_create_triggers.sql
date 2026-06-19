@@ -19,7 +19,7 @@ BEGIN
       'asp_schools', 'asp_students', 'asp_guardians', 'asp_enrollments',
       'asp_vehicles', 'asp_staff', 'asp_waitlist', 'asp_calendar_rules',
       'asp_daily_attendance', 'asp_staff_availability', 'asp_staff_assignments',
-      'asp_routes', 'user_profiles'
+      'asp_routes', 'asp_route_stops', 'user_profiles'
     ])
   LOOP
     EXECUTE format(

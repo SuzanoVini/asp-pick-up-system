@@ -7,6 +7,8 @@ CREATE TABLE asp_staff_assignments (
   role text NOT NULL CHECK (role IN ('driver', 'helper')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid REFERENCES auth.users(id),
+  updated_by uuid REFERENCES auth.users(id),
   UNIQUE (staff_id, date),
   UNIQUE (date, vehicle_id, role)
 );

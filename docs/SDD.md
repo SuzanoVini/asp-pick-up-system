@@ -161,7 +161,7 @@ Roles are determined by `auth.uid()` joined to a `user_profiles` table.
 ### 5.2 RLS Implementation
 
 - RLS enabled on ALL `asp_*` tables with default deny.
-- Owner/admin gets full SELECT/INSERT/UPDATE/DELETE on operational tables, except immutable or server-managed tables such as `asp_audit_events`, where write access is restricted to trusted server actions.
+- Owner/admin gets full SELECT/INSERT/UPDATE/DELETE on operational and admin tables. Server-managed tables (`asp_audit_events`, `asp_sync_events`, `asp_distance_cache`) are read-only to owners -- writes happen through trusted server actions using the service role.
 - Staff reads operational data through staff-facing views, RPCs, or explicit column grants that expose only the fields required for daily attendance and route work. Staff do not receive direct base-table SELECT on sensitive tables or restricted student columns.
 - Staff-facing read models may expose limited operational fields from students, schools, attendance, routes, route stops, staff, availability, assignments, and vehicles. They must not expose guardian contacts, waitlist data, audit events, sync events, settings, enrollments, student home addresses, or private comments.
 - Column-level restrictions are implemented with database views, RPCs, or table grants, since RLS is row-level only.
