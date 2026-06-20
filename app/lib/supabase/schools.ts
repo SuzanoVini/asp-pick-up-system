@@ -1,9 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export async function getSchools(
-	supabase: SupabaseClient,
-	filters?: { status?: string },
-) {
+export async function getSchools(supabase: SupabaseClient, filters?: { status?: string }) {
 	let query = supabase.from("asp_schools").select("*").order("name");
 
 	if (filters?.status) {
@@ -20,20 +17,13 @@ export async function getActiveSchools(supabase: SupabaseClient) {
 }
 
 export async function getSchoolById(supabase: SupabaseClient, id: string) {
-	const { data, error } = await supabase
-		.from("asp_schools")
-		.select("*")
-		.eq("id", id)
-		.single();
+	const { data, error } = await supabase.from("asp_schools").select("*").eq("id", id).single();
 
 	if (error) throw error;
 	return data;
 }
 
-export async function createSchool(
-	supabase: SupabaseClient,
-	input: Record<string, unknown>,
-) {
+export async function createSchool(supabase: SupabaseClient, input: Record<string, unknown>) {
 	const { data, error } = await supabase.from("asp_schools").insert(input).select().single();
 	if (error) throw error;
 	return data;

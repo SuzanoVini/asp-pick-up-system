@@ -1,6 +1,6 @@
 import { detectConflicts } from "../conflict-detection";
 import type { IntermediateStatus } from "../types";
-import { makeRule, makeStudent, MONDAY, WEDNESDAY, resetIds } from "./helpers";
+import { MONDAY, makeRule, makeStudent, resetIds, WEDNESDAY } from "./helpers";
 
 beforeEach(() => resetIds());
 

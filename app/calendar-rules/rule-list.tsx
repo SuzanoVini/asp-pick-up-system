@@ -1,14 +1,11 @@
 "use client";
 
+import { Pencil, Plus, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { deleteCalendarRuleAction, toggleRuleActiveAction } from "@/app/actions/calendar-rules";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
-import { RuleStatusIndicator } from "./rule-status-indicator";
 import { RuleForm } from "./rule-form";
-import {
-	toggleRuleActiveAction,
-	deleteCalendarRuleAction,
-} from "@/app/actions/calendar-rules";
+import { RuleStatusIndicator } from "./rule-status-indicator";
 
 interface CalendarRuleRecord {
 	id: string;
@@ -39,11 +36,12 @@ export function RuleList({ rules, schools, students }: RuleListProps) {
 	const [deleting, setDeleting] = useState<CalendarRuleRecord | null>(null);
 	const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
 
-	const filtered = filter === "all"
-		? rules
-		: filter === "active"
-			? rules.filter((r) => r.is_active)
-			: rules.filter((r) => !r.is_active);
+	const filtered =
+		filter === "all"
+			? rules
+			: filter === "active"
+				? rules.filter((r) => r.is_active)
+				: rules.filter((r) => !r.is_active);
 
 	const handleToggle = async (rule: CalendarRuleRecord) => {
 		await toggleRuleActiveAction(rule.id, !rule.is_active);
@@ -124,7 +122,7 @@ export function RuleList({ rules, schools, students }: RuleListProps) {
 								</div>
 								<div className="mt-1 text-sm text-gray-600">
 									<span className="font-medium">Target:</span>{" "}
-									{rule.target_type === "all" ? "All schools" : rule.target_name ?? "-"}
+									{rule.target_type === "all" ? "All schools" : (rule.target_name ?? "-")}
 									{rule.target_type !== "all" && (
 										<span className="text-gray-400"> ({rule.target_type})</span>
 									)}
@@ -136,7 +134,9 @@ export function RuleList({ rules, schools, students }: RuleListProps) {
 									)}
 									{rule.switch_from_to && <span> -- {rule.switch_from_to}</span>}
 									{rule.start_week && <span> -- Start week: {rule.start_week}</span>}
-									{rule.early_dismissal_time && <span> -- ED time: {rule.early_dismissal_time}</span>}
+									{rule.early_dismissal_time && (
+										<span> -- ED time: {rule.early_dismissal_time}</span>
+									)}
 								</div>
 								{rule.description && (
 									<p className="mt-1 text-sm text-gray-400">{rule.description}</p>
@@ -150,7 +150,11 @@ export function RuleList({ rules, schools, students }: RuleListProps) {
 									aria-label={rule.is_active ? "Deactivate" : "Activate"}
 									title={rule.is_active ? "Deactivate" : "Activate"}
 								>
-									{rule.is_active ? <ToggleRight size={20} className="text-green-600" /> : <ToggleLeft size={20} />}
+									{rule.is_active ? (
+										<ToggleRight size={20} className="text-green-600" />
+									) : (
+										<ToggleLeft size={20} />
+									)}
 								</button>
 								<button
 									type="button"

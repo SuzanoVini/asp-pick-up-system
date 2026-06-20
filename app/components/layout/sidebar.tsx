@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
 import {
 	Archive,
 	Building2,
@@ -22,6 +19,9 @@ import {
 	Users,
 	X,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { Logo } from "./logo";
 
 const navItems = [
@@ -88,14 +88,13 @@ export function Sidebar() {
 			</button>
 
 			{mobileOpen && (
-				<div
+				<button
+					type="button"
 					className="fixed inset-0 z-40 bg-black/50 lg:hidden"
 					onClick={() => setMobileOpen(false)}
 					onKeyDown={(e) => {
 						if (e.key === "Escape") setMobileOpen(false);
 					}}
-					role="button"
-					tabIndex={0}
 					aria-label="Close navigation overlay"
 				/>
 			)}
@@ -118,10 +117,7 @@ export function Sidebar() {
 						<X size={18} />
 					</button>
 				</div>
-				<div
-					className="mx-3 border-t"
-					style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}
-				/>
+				<div className="mx-3 border-t" style={{ borderColor: "rgba(255, 255, 255, 0.1)" }} />
 				{nav}
 			</aside>
 		</>

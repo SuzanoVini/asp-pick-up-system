@@ -1,7 +1,7 @@
 "use client";
 
 import { Archive } from "lucide-react";
-import { DataTable, type Column } from "@/app/components/ui/data-table";
+import { type Column, DataTable } from "@/app/components/ui/data-table";
 import { EmptyState } from "@/app/components/ui/empty-state";
 
 interface FormerStudent {
@@ -34,7 +34,7 @@ export function FormerStudentList({ students, schoolNames }: Props) {
 			key: "school_id",
 			label: "School",
 			sortable: true,
-			render: (r) => (r.school_id ? schoolNames[r.school_id] ?? "-" : "-"),
+			render: (r) => (r.school_id ? (schoolNames[r.school_id] ?? "-") : "-"),
 		},
 		{
 			key: "date_of_birth",

@@ -1,12 +1,12 @@
-import type { CalendarRule, IntermediateStatus, School, Student, SystemSettings } from "./types";
 import { isRuleActiveForDate } from "./rule-utils";
+import type { CalendarRule, IntermediateStatus, School, Student, SystemSettings } from "./types";
 
 function resolveEdTime(
 	studentId: string,
 	matchingRules: CalendarRule[],
 	students: Student[],
 	schools: School[],
-	allRules: CalendarRule[],
+	_allRules: CalendarRule[],
 	settings: SystemSettings,
 ): string | null {
 	const student = students.find((s) => s.id === studentId);
@@ -24,9 +24,7 @@ function resolveEdTime(
 	// Level 3: school-level rule early_dismissal_time
 	const schoolRule = matchingRules.find(
 		(r) =>
-			r.targetType === "school" &&
-			r.targetSchoolId === student.schoolId &&
-			r.earlyDismissalTime,
+			r.targetType === "school" && r.targetSchoolId === student.schoolId && r.earlyDismissalTime,
 	);
 	if (schoolRule?.earlyDismissalTime) return schoolRule.earlyDismissalTime;
 

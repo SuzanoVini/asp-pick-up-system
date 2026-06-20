@@ -1,5 +1,5 @@
-import type { CalendarRule, DayOfWeek, IntermediateStatus } from "./types";
 import { getDayOfWeek } from "./base-schedule";
+import type { CalendarRule, DayOfWeek, IntermediateStatus } from "./types";
 
 function parseSwitchFromTo(switchFromTo: string): { from: DayOfWeek; to: DayOfWeek } | null {
 	const parts = switchFromTo.split(">");
@@ -35,7 +35,7 @@ export function applyDaySwitch(
 
 	return statuses.map((s) => {
 		const matchingRule = switchRules.find((r) => r.targetStudentId === s.studentId);
-		if (!matchingRule || !matchingRule.switchFromTo) return s;
+		if (!matchingRule?.switchFromTo) return s;
 
 		const parsed = parseSwitchFromTo(matchingRule.switchFromTo);
 		if (!parsed) return s;

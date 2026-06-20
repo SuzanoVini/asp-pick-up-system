@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FormField } from "@/app/components/ui/form-field";
 import { createSchoolAction, updateSchoolAction } from "@/app/actions/schools";
+import { FormField } from "@/app/components/ui/form-field";
 
 interface SchoolFormProps {
 	school?: {

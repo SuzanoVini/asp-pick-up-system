@@ -1,6 +1,6 @@
 import { applyDaySwitch } from "../day-switch";
 import type { IntermediateStatus } from "../types";
-import { makeStudent, makeRule, MONDAY, TUESDAY, WEDNESDAY, resetIds } from "./helpers";
+import { MONDAY, makeRule, makeStudent, resetIds, TUESDAY, WEDNESDAY } from "./helpers";
 
 beforeEach(() => resetIds());
 

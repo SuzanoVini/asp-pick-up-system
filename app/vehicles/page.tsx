@@ -3,10 +3,7 @@ import { VehicleList } from "./vehicle-list";
 
 export default async function VehiclesPage() {
 	const supabase = await createClient();
-	const { data: vehicles } = await supabase
-		.from("asp_vehicles")
-		.select("*")
-		.order("name");
+	const { data: vehicles } = await supabase.from("asp_vehicles").select("*").order("name");
 
 	return (
 		<div>

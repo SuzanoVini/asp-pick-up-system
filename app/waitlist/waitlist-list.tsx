@@ -1,12 +1,12 @@
 "use client";
 
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { DataTable, type Column } from "@/app/components/ui/data-table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
-import { WaitlistForm } from "./waitlist-form";
 import { deleteWaitlistAction, updateWaitlistAction } from "@/app/actions/waitlist";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/app/components/ui/data-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { WaitlistForm } from "./waitlist-form";
 
 interface WaitlistEntry {
 	id: string;
@@ -27,7 +27,8 @@ export function WaitlistList({ entries }: { entries: WaitlistEntry[] }) {
 	const [deleting, setDeleting] = useState<WaitlistEntry | null>(null);
 	const [statusFilter, setStatusFilter] = useState<string>("all");
 
-	const filtered = statusFilter === "all" ? entries : entries.filter((e) => e.status === statusFilter);
+	const filtered =
+		statusFilter === "all" ? entries : entries.filter((e) => e.status === statusFilter);
 
 	const handleDelete = async () => {
 		if (!deleting) return;
@@ -61,28 +62,79 @@ export function WaitlistList({ entries }: { entries: WaitlistEntry[] }) {
 			render: (r) => (
 				<div className="flex gap-1">
 					{r.status === "waiting" && (
-						<button type="button" onClick={(e) => { e.stopPropagation(); handleStatusChange(r.id, "offered"); }}
-							className="rounded px-2 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Offer</button>
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								handleStatusChange(r.id, "offered");
+							}}
+							className="rounded px-2 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+						>
+							Offer
+						</button>
 					)}
 					{r.status === "offered" && (
 						<>
-							<button type="button" onClick={(e) => { e.stopPropagation(); handleStatusChange(r.id, "enrolled"); }}
-								className="rounded px-2 py-1 text-xs bg-green-50 text-green-700 hover:bg-green-100">Enroll</button>
-							<button type="button" onClick={(e) => { e.stopPropagation(); handleStatusChange(r.id, "declined"); }}
-								className="rounded px-2 py-1 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100">Decline</button>
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleStatusChange(r.id, "enrolled");
+								}}
+								className="rounded px-2 py-1 text-xs bg-green-50 text-green-700 hover:bg-green-100"
+							>
+								Enroll
+							</button>
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleStatusChange(r.id, "declined");
+								}}
+								className="rounded px-2 py-1 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+							>
+								Decline
+							</button>
 						</>
 					)}
-					<button type="button" onClick={(e) => { e.stopPropagation(); setEditing(r); setShowForm(true); }}
-						className="rounded p-1 text-gray-400 hover:text-gray-600" aria-label="Edit"><Pencil size={16} /></button>
-					<button type="button" onClick={(e) => { e.stopPropagation(); setDeleting(r); }}
-						className="rounded p-1 text-gray-400 hover:text-red-600" aria-label="Delete"><Trash2 size={16} /></button>
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							setEditing(r);
+							setShowForm(true);
+						}}
+						className="rounded p-1 text-gray-400 hover:text-gray-600"
+						aria-label="Edit"
+					>
+						<Pencil size={16} />
+					</button>
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							setDeleting(r);
+						}}
+						className="rounded p-1 text-gray-400 hover:text-red-600"
+						aria-label="Delete"
+					>
+						<Trash2 size={16} />
+					</button>
 				</div>
 			),
 		},
 	];
 
 	if (showForm) {
-		return <WaitlistForm entry={editing ?? undefined} onClose={() => { setShowForm(false); setEditing(null); }} />;
+		return (
+			<WaitlistForm
+				entry={editing ?? undefined}
+				onClose={() => {
+					setShowForm(false);
+					setEditing(null);
+				}}
+			/>
+		);
 	}
 
 	return (
@@ -90,19 +142,42 @@ export function WaitlistList({ entries }: { entries: WaitlistEntry[] }) {
 			<div className="mb-4 flex items-center justify-between">
 				<div className="flex gap-2">
 					{["all", "waiting", "offered", "enrolled", "declined"].map((f) => (
-						<button key={f} type="button" onClick={() => setStatusFilter(f)}
-							className={`rounded-md px-3 py-1.5 text-sm font-medium ${statusFilter === f ? "bg-[var(--color-primary)] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+						<button
+							key={f}
+							type="button"
+							onClick={() => setStatusFilter(f)}
+							className={`rounded-md px-3 py-1.5 text-sm font-medium ${statusFilter === f ? "bg-[var(--color-primary)] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+						>
 							{f.charAt(0).toUpperCase() + f.slice(1)}
 						</button>
 					))}
 				</div>
-				<button type="button" onClick={() => { setEditing(null); setShowForm(true); }}
-					className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90">
+				<button
+					type="button"
+					onClick={() => {
+						setEditing(null);
+						setShowForm(true);
+					}}
+					className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+				>
 					<Plus size={16} /> Add to Waitlist
 				</button>
 			</div>
-			<DataTable data={filtered as (WaitlistEntry & Record<string, unknown>)[]} columns={columns as Column<WaitlistEntry & Record<string, unknown>>[]} searchable searchKeys={["child_name", "parent_name"]} />
-			<ConfirmDialog open={!!deleting} title="Delete Waitlist Entry" message={`Remove "${deleting?.child_name}" from the waitlist?`} confirmLabel="Delete" destructive onConfirm={handleDelete} onCancel={() => setDeleting(null)} />
+			<DataTable
+				data={filtered as (WaitlistEntry & Record<string, unknown>)[]}
+				columns={columns as Column<WaitlistEntry & Record<string, unknown>>[]}
+				searchable
+				searchKeys={["child_name", "parent_name"]}
+			/>
+			<ConfirmDialog
+				open={!!deleting}
+				title="Delete Waitlist Entry"
+				message={`Remove "${deleting?.child_name}" from the waitlist?`}
+				confirmLabel="Delete"
+				destructive
+				onConfirm={handleDelete}
+				onCancel={() => setDeleting(null)}
+			/>
 		</div>
 	);
 }

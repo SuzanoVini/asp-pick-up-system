@@ -1,5 +1,5 @@
-import type { CalendarRule } from "./types";
 import { getDayOfWeek } from "./base-schedule";
+import type { CalendarRule } from "./types";
 
 export function isRuleActiveForDate(date: Date, rule: CalendarRule): boolean {
 	const dateStr = date.toISOString().split("T")[0];

@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/app/lib/supabase/server";
 import { createSchoolSchema, updateSchoolSchema } from "@/app/lib/schemas/school";
 import * as schoolsDb from "@/app/lib/supabase/schools";
+import { createClient } from "@/app/lib/supabase/server";
 
 export async function createSchoolAction(formData: Record<string, unknown>) {
 	const parsed = createSchoolSchema.safeParse(formData);

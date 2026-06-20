@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/app/lib/supabase/server";
 import { createStudentSchema, updateStudentSchema } from "@/app/lib/schemas/student";
+import { createClient } from "@/app/lib/supabase/server";
 import * as studentsDb from "@/app/lib/supabase/students";
 
 export async function createStudentAction(formData: Record<string, unknown>) {

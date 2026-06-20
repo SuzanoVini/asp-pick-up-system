@@ -9,7 +9,10 @@ export const createWaitlistSchema = z.object({
 	parent_name: z.string().trim().max(500).nullable().optional(),
 	parent_email: z.string().trim().email().max(500).nullable().optional(),
 	parent_phone: z.string().trim().max(50).nullable().optional(),
-	intended_days: z.array(z.enum(["Mon", "Tue", "Wed", "Thu", "Fri"])).nullable().optional(),
+	intended_days: z
+		.array(z.enum(["Mon", "Tue", "Wed", "Thu", "Fri"]))
+		.nullable()
+		.optional(),
 	status: waitlistStatusEnum.default("waiting"),
 });
 

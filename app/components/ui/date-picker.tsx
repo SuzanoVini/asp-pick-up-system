@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 interface DatePickerProps {
 	value: string;
 	onChange: (value: string) => void;
@@ -8,15 +10,18 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ value, onChange, label, required, min, max }: DatePickerProps) {
+	const id = useId();
+
 	return (
 		<div>
 			{label && (
-				<label className="mb-1 block text-sm font-medium text-gray-700">
+				<label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
 					{label}
 					{required && <span className="ml-0.5 text-red-500">*</span>}
 				</label>
 			)}
 			<input
+				id={id}
 				type="date"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}

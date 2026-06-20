@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FormField } from "@/app/components/ui/form-field";
 import { createStudentAction, updateStudentAction } from "@/app/actions/students";
+import { FormField } from "@/app/components/ui/form-field";
 
 interface School {
 	id: string;
@@ -84,50 +84,105 @@ export function StudentForm({ student, schools, onClose }: StudentFormProps) {
 			<form onSubmit={handleSubmit}>
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<FormField label="Name" required error={errors.name}>
-						<input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+						<input
+							type="text"
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							className={inputClass}
+						/>
 					</FormField>
 					<FormField label="School" error={errors.school_id}>
-						<select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className={inputClass}>
+						<select
+							value={schoolId}
+							onChange={(e) => setSchoolId(e.target.value)}
+							className={inputClass}
+						>
 							<option value="">-- Select --</option>
 							{schools.map((s) => (
-								<option key={s.id} value={s.id}>{s.name}</option>
+								<option key={s.id} value={s.id}>
+									{s.name}
+								</option>
 							))}
 						</select>
 					</FormField>
 					<FormField label="Date of Birth" error={errors.date_of_birth}>
-						<input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className={inputClass} />
+						<input
+							type="date"
+							value={dob}
+							onChange={(e) => setDob(e.target.value)}
+							className={inputClass}
+						/>
 					</FormField>
 					<FormField label="First Pickup Date" error={errors.first_pickup_date}>
-						<input type="date" value={firstPickup} onChange={(e) => setFirstPickup(e.target.value)} className={inputClass} />
+						<input
+							type="date"
+							value={firstPickup}
+							onChange={(e) => setFirstPickup(e.target.value)}
+							className={inputClass}
+						/>
 					</FormField>
 					<FormField label="Dismissal Time Override" error={errors.dismissal_time}>
-						<input type="time" value={dismissalTime} onChange={(e) => setDismissalTime(e.target.value)} className={inputClass} />
+						<input
+							type="time"
+							value={dismissalTime}
+							onChange={(e) => setDismissalTime(e.target.value)}
+							className={inputClass}
+						/>
 					</FormField>
 					<FormField label="Early Dismissal Time Override" error={errors.early_dismissal_time}>
-						<input type="time" value={edTime} onChange={(e) => setEdTime(e.target.value)} className={inputClass} />
+						<input
+							type="time"
+							value={edTime}
+							onChange={(e) => setEdTime(e.target.value)}
+							className={inputClass}
+						/>
 					</FormField>
 				</div>
 				<FormField label="Home Address" error={errors.home_address}>
-					<textarea value={homeAddress} onChange={(e) => setHomeAddress(e.target.value)} rows={2} className={inputClass} />
+					<textarea
+						value={homeAddress}
+						onChange={(e) => setHomeAddress(e.target.value)}
+						rows={2}
+						className={inputClass}
+					/>
 				</FormField>
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<FormField label="Pickup Comments" error={errors.comments_pickup}>
-						<textarea value={commentsPickup} onChange={(e) => setCommentsPickup(e.target.value)} rows={2} className={inputClass} />
+						<textarea
+							value={commentsPickup}
+							onChange={(e) => setCommentsPickup(e.target.value)}
+							rows={2}
+							className={inputClass}
+						/>
 					</FormField>
 					<FormField label="Drop-off Comments" error={errors.comments_dropoff}>
-						<textarea value={commentsDropoff} onChange={(e) => setCommentsDropoff(e.target.value)} rows={2} className={inputClass} />
+						<textarea
+							value={commentsDropoff}
+							onChange={(e) => setCommentsDropoff(e.target.value)}
+							rows={2}
+							className={inputClass}
+						/>
 					</FormField>
 				</div>
 				<div className="mt-2 flex gap-6">
 					<FormField label="">
 						<label className="inline-flex items-center gap-2 cursor-pointer">
-							<input type="checkbox" checked={dropOffOnly} onChange={(e) => setDropOffOnly(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
+							<input
+								type="checkbox"
+								checked={dropOffOnly}
+								onChange={(e) => setDropOffOnly(e.target.checked)}
+								className="h-4 w-4 rounded border-gray-300"
+							/>
 							<span className="text-sm text-gray-700">Drop-off only</span>
 						</label>
 					</FormField>
 					{isEdit && (
 						<FormField label="Status" error={errors.status}>
-							<select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
+							<select
+								value={status}
+								onChange={(e) => setStatus(e.target.value)}
+								className={inputClass}
+							>
 								<option value="active">Active</option>
 								<option value="pending">Pending</option>
 								<option value="former">Former</option>
@@ -136,8 +191,18 @@ export function StudentForm({ student, schools, onClose }: StudentFormProps) {
 					)}
 				</div>
 				<div className="mt-4 flex justify-end gap-3">
-					<button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-					<button type="submit" disabled={saving} className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+					<button
+						type="button"
+						onClick={onClose}
+						className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						disabled={saving}
+						className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+					>
 						{saving ? "Saving..." : isEdit ? "Update" : "Create"}
 					</button>
 				</div>

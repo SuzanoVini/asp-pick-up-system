@@ -1,9 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export async function getVehicles(
-	supabase: SupabaseClient,
-	filters?: { isActive?: boolean },
-) {
+export async function getVehicles(supabase: SupabaseClient, filters?: { isActive?: boolean }) {
 	let query = supabase.from("asp_vehicles").select("*").order("name");
 
 	if (filters?.isActive !== undefined) {
@@ -20,20 +17,13 @@ export async function getActiveVehicles(supabase: SupabaseClient) {
 }
 
 export async function getVehicleById(supabase: SupabaseClient, id: string) {
-	const { data, error } = await supabase
-		.from("asp_vehicles")
-		.select("*")
-		.eq("id", id)
-		.single();
+	const { data, error } = await supabase.from("asp_vehicles").select("*").eq("id", id).single();
 
 	if (error) throw error;
 	return data;
 }
 
-export async function createVehicle(
-	supabase: SupabaseClient,
-	input: Record<string, unknown>,
-) {
+export async function createVehicle(supabase: SupabaseClient, input: Record<string, unknown>) {
 	const { data, error } = await supabase.from("asp_vehicles").insert(input).select().single();
 	if (error) throw error;
 	return data;

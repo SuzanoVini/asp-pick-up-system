@@ -31,11 +31,7 @@ export async function getSystemSettings(supabase: SupabaseClient) {
 	};
 }
 
-export async function updateSetting(
-	supabase: SupabaseClient,
-	key: string,
-	value: unknown,
-) {
+export async function updateSetting(supabase: SupabaseClient, key: string, value: unknown) {
 	const { error } = await supabase
 		.from("asp_settings")
 		.upsert({ key, value: JSON.stringify(value) }, { onConflict: "key" });

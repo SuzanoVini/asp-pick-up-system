@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
+import { useState } from "react";
 import { Logo } from "@/app/components/layout/logo";
+import { createClient } from "@/app/lib/supabase/client";
 
 export default function LoginPage() {
 	const [email, setEmail] = useState("");
@@ -44,10 +44,7 @@ export default function LoginPage() {
 				}}
 			>
 				<div className="mb-6 flex justify-center">
-					<div
-						className="rounded-lg p-1"
-						style={{ backgroundColor: "var(--color-sidebar-bg)" }}
-					>
+					<div className="rounded-lg p-1" style={{ backgroundColor: "var(--color-sidebar-bg)" }}>
 						<Logo />
 					</div>
 				</div>
@@ -82,7 +79,7 @@ export default function LoginPage() {
 							className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
 							style={{
 								borderColor: "#d1d5db",
-															}}
+							}}
 						/>
 					</div>
 
@@ -100,7 +97,7 @@ export default function LoginPage() {
 							className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
 							style={{
 								borderColor: "#d1d5db",
-															}}
+							}}
 						/>
 					</div>
 

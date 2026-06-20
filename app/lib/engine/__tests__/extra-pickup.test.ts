@@ -1,6 +1,6 @@
 import { applyExtraPickup } from "../extra-pickup";
 import type { IntermediateStatus } from "../types";
-import { makeStudent, makeRule, MONDAY, resetIds } from "./helpers";
+import { MONDAY, makeRule, makeStudent, resetIds } from "./helpers";
 
 beforeEach(() => resetIds());
 

@@ -1,12 +1,12 @@
 "use client";
 
+import { CheckCircle, Pencil, Plus, XCircle } from "lucide-react";
 import { useState } from "react";
-import { Plus, Pencil, XCircle, CheckCircle } from "lucide-react";
-import { DataTable, type Column } from "@/app/components/ui/data-table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { activateEnrollmentAction, cancelEnrollmentAction } from "@/app/actions/enrollments";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/app/components/ui/data-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EnrollmentForm } from "./enrollment-form";
-import { cancelEnrollmentAction, activateEnrollmentAction } from "@/app/actions/enrollments";
 
 interface Enrollment {
 	id: string;
@@ -28,9 +28,12 @@ export function EnrollmentList({ enrollments, students, studentNames }: Props) {
 	const [showForm, setShowForm] = useState(false);
 	const [editing, setEditing] = useState<Enrollment | null>(null);
 	const [cancelling, setCancelling] = useState<Enrollment | null>(null);
-	const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "active" | "cancelled">("all");
+	const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "active" | "cancelled">(
+		"all",
+	);
 
-	const filtered = statusFilter === "all" ? enrollments : enrollments.filter((e) => e.status === statusFilter);
+	const filtered =
+		statusFilter === "all" ? enrollments : enrollments.filter((e) => e.status === statusFilter);
 
 	const handleCancel = async () => {
 		if (!cancelling) return;
@@ -74,7 +77,10 @@ export function EnrollmentList({ enrollments, students, studentNames }: Props) {
 					{r.status === "pending" && (
 						<button
 							type="button"
-							onClick={(e) => { e.stopPropagation(); handleActivate(r.id); }}
+							onClick={(e) => {
+								e.stopPropagation();
+								handleActivate(r.id);
+							}}
 							className="rounded p-1 text-green-500 hover:text-green-700"
 							title="Activate"
 						>
@@ -85,7 +91,11 @@ export function EnrollmentList({ enrollments, students, studentNames }: Props) {
 						<>
 							<button
 								type="button"
-								onClick={(e) => { e.stopPropagation(); setEditing(r); setShowForm(true); }}
+								onClick={(e) => {
+									e.stopPropagation();
+									setEditing(r);
+									setShowForm(true);
+								}}
 								className="rounded p-1 text-gray-400 hover:text-gray-600"
 								aria-label="Edit"
 							>
@@ -93,7 +103,10 @@ export function EnrollmentList({ enrollments, students, studentNames }: Props) {
 							</button>
 							<button
 								type="button"
-								onClick={(e) => { e.stopPropagation(); setCancelling(r); }}
+								onClick={(e) => {
+									e.stopPropagation();
+									setCancelling(r);
+								}}
 								className="rounded p-1 text-gray-400 hover:text-red-600"
 								title="Cancel enrollment"
 							>
@@ -107,7 +120,16 @@ export function EnrollmentList({ enrollments, students, studentNames }: Props) {
 	];
 
 	if (showForm) {
-		return <EnrollmentForm enrollment={editing ?? undefined} students={students} onClose={() => { setShowForm(false); setEditing(null); }} />;
+		return (
+			<EnrollmentForm
+				enrollment={editing ?? undefined}
+				students={students}
+				onClose={() => {
+					setShowForm(false);
+					setEditing(null);
+				}}
+			/>
+		);
 	}
 
 	return (
@@ -131,13 +153,21 @@ export function EnrollmentList({ enrollments, students, studentNames }: Props) {
 				</div>
 				<button
 					type="button"
-					onClick={() => { setEditing(null); setShowForm(true); }}
+					onClick={() => {
+						setEditing(null);
+						setShowForm(true);
+					}}
 					className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
 				>
 					<Plus size={16} /> Add Enrollment
 				</button>
 			</div>
-			<DataTable data={filtered as (Enrollment & Record<string, unknown>)[]} columns={columns as Column<Enrollment & Record<string, unknown>>[]} searchable searchKeys={["student_id"]} />
+			<DataTable
+				data={filtered as (Enrollment & Record<string, unknown>)[]}
+				columns={columns as Column<Enrollment & Record<string, unknown>>[]}
+				searchable
+				searchKeys={["student_id"]}
+			/>
 			<ConfirmDialog
 				open={!!cancelling}
 				title="Cancel Enrollment"

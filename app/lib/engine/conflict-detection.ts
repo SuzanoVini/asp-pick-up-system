@@ -1,6 +1,6 @@
-import type { CalendarRule, ConflictInfo, IntermediateStatus } from "./types";
 import { getDayOfWeek } from "./base-schedule";
 import { isRuleActiveForDate } from "./rule-utils";
+import type { CalendarRule, ConflictInfo, IntermediateStatus } from "./types";
 
 interface RuleEffect {
 	ruleId: string;
@@ -114,11 +114,7 @@ export function detectConflicts(
 
 		if (uniqueTargets.length <= 1) return s;
 
-		if (
-			uniqueTargets.length === 2 &&
-			uniqueTargets.includes("A") &&
-			uniqueTargets.includes("ED")
-		) {
+		if (uniqueTargets.length === 2 && uniqueTargets.includes("A") && uniqueTargets.includes("ED")) {
 			return {
 				...s,
 				status: "A" as const,

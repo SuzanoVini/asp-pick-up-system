@@ -1,11 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { createCalendarRuleAction, updateCalendarRuleAction } from "@/app/actions/calendar-rules";
 import { FormField } from "@/app/components/ui/form-field";
-import {
-	createCalendarRuleAction,
-	updateCalendarRuleAction,
-} from "@/app/actions/calendar-rules";
 
 const RULE_TYPES = [
 	"District-Wide Break",
@@ -52,11 +49,11 @@ function getTargetTypeForRuleType(ruleType: string): string {
 	return "student";
 }
 
-function needsSchoolTarget(ruleType: string, targetType: string): boolean {
+function needsSchoolTarget(_ruleType: string, targetType: string): boolean {
 	return targetType === "school";
 }
 
-function needsStudentTarget(ruleType: string, targetType: string): boolean {
+function needsStudentTarget(_ruleType: string, targetType: string): boolean {
 	return targetType === "student";
 }
 
@@ -79,7 +76,9 @@ function needsEarlyDismissalTime(ruleType: string): boolean {
 export function RuleForm({ rule, schools, students, onClose }: RuleFormProps) {
 	const isEditing = !!rule;
 	const [ruleType, setRuleType] = useState(rule?.rule_type ?? "District-Wide Break");
-	const [targetType, setTargetType] = useState(rule?.target_type ?? getTargetTypeForRuleType(ruleType));
+	const [targetType, setTargetType] = useState(
+		rule?.target_type ?? getTargetTypeForRuleType(ruleType),
+	);
 	const [targetSchoolId, setTargetSchoolId] = useState(rule?.target_school_id ?? "");
 	const [targetStudentId, setTargetStudentId] = useState(rule?.target_student_id ?? "");
 	const [startDate, setStartDate] = useState(rule?.start_date ?? "");
@@ -103,9 +102,7 @@ export function RuleForm({ rule, schools, students, onClose }: RuleFormProps) {
 	};
 
 	const toggleDay = (day: string) => {
-		setDaysOfWeek((prev) =>
-			prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
-		);
+		setDaysOfWeek((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -117,8 +114,8 @@ export function RuleForm({ rule, schools, students, onClose }: RuleFormProps) {
 			targetType === "all"
 				? "ALL"
 				: targetType === "school"
-					? schools.find((s) => s.id === targetSchoolId)?.name ?? ""
-					: students.find((s) => s.id === targetStudentId)?.name ?? "";
+					? (schools.find((s) => s.id === targetSchoolId)?.name ?? "")
+					: (students.find((s) => s.id === targetStudentId)?.name ?? "");
 
 		const formData: Record<string, unknown> = {
 			rule_type: ruleType,
@@ -169,7 +166,9 @@ export function RuleForm({ rule, schools, students, onClose }: RuleFormProps) {
 					className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
 				>
 					{RULE_TYPES.map((rt) => (
-						<option key={rt} value={rt}>{rt}</option>
+						<option key={rt} value={rt}>
+							{rt}
+						</option>
 					))}
 				</select>
 			</FormField>
@@ -196,7 +195,9 @@ export function RuleForm({ rule, schools, students, onClose }: RuleFormProps) {
 					>
 						<option value="">Select school...</option>
 						{schools.map((s) => (
-							<option key={s.id} value={s.id}>{s.name}</option>
+							<option key={s.id} value={s.id}>
+								{s.name}
+							</option>
 						))}
 					</select>
 				</FormField>
@@ -211,7 +212,9 @@ export function RuleForm({ rule, schools, students, onClose }: RuleFormProps) {
 					>
 						<option value="">Select student...</option>
 						{students.map((s) => (
-							<option key={s.id} value={s.id}>{s.name}</option>
+							<option key={s.id} value={s.id}>
+								{s.name}
+							</option>
 						))}
 					</select>
 				</FormField>

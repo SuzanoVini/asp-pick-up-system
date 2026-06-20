@@ -1,12 +1,12 @@
 "use client";
 
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { DataTable, type Column } from "@/app/components/ui/data-table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
-import { VehicleForm } from "./vehicle-form";
 import { deleteVehicleAction } from "@/app/actions/vehicles";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/app/components/ui/data-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { VehicleForm } from "./vehicle-form";
 
 interface Vehicle {
 	id: string;
@@ -74,7 +74,15 @@ export function VehicleList({ vehicles }: { vehicles: Vehicle[] }) {
 	];
 
 	if (showForm) {
-		return <VehicleForm vehicle={editing ?? undefined} onClose={() => { setShowForm(false); setEditing(null); }} />;
+		return (
+			<VehicleForm
+				vehicle={editing ?? undefined}
+				onClose={() => {
+					setShowForm(false);
+					setEditing(null);
+				}}
+			/>
+		);
 	}
 
 	return (
@@ -82,7 +90,10 @@ export function VehicleList({ vehicles }: { vehicles: Vehicle[] }) {
 			<div className="mb-4 flex justify-end">
 				<button
 					type="button"
-					onClick={() => { setEditing(null); setShowForm(true); }}
+					onClick={() => {
+						setEditing(null);
+						setShowForm(true);
+					}}
 					className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
 				>
 					<Plus size={16} />

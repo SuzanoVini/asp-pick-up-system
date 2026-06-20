@@ -3,10 +3,7 @@ import { StaffList } from "./staff-list";
 
 export default async function StaffPage() {
 	const supabase = await createClient();
-	const { data: staff } = await supabase
-		.from("asp_staff")
-		.select("*")
-		.order("name");
+	const { data: staff } = await supabase.from("asp_staff").select("*").order("name");
 
 	return (
 		<div>

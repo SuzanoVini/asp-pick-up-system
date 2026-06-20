@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/app/lib/supabase/server";
 import { createWaitlistSchema, updateWaitlistSchema } from "@/app/lib/schemas/waitlist";
+import { createClient } from "@/app/lib/supabase/server";
 import * as waitlistDb from "@/app/lib/supabase/waitlist";
 
 export async function createWaitlistAction(formData: Record<string, unknown>) {

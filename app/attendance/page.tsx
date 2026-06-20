@@ -1,6 +1,14 @@
-import { createClient } from "@/app/lib/supabase/server";
 import { computeAttendance } from "@/app/lib/engine/compute-attendance";
-import type { Student, Enrollment, CalendarRule, School, SystemSettings, ManualOverride, DayOfWeek } from "@/app/lib/engine/types";
+import type {
+	CalendarRule,
+	DayOfWeek,
+	Enrollment,
+	ManualOverride,
+	School,
+	Student,
+	SystemSettings,
+} from "@/app/lib/engine/types";
+import { createClient } from "@/app/lib/supabase/server";
 import { getSystemSettings } from "@/app/lib/supabase/settings";
 import { AttendanceView } from "./attendance-view";
 
@@ -61,7 +69,7 @@ function toEngineSchool(row: Record<string, unknown>): School {
 export default async function AttendancePage({ searchParams }: PageProps) {
 	const params = await searchParams;
 	const dateStr = params.date ?? new Date().toISOString().split("T")[0];
-	const date = new Date(dateStr + "T00:00:00");
+	const date = new Date(`${dateStr}T00:00:00`);
 
 	const supabase = await createClient();
 

@@ -49,12 +49,13 @@ export function OverrideDialog({
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center">
-			<div
+			<button
+				type="button"
 				className="fixed inset-0 bg-black/50"
 				onClick={onClose}
-				onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
-				role="button"
-				tabIndex={0}
+				onKeyDown={(e) => {
+					if (e.key === "Escape") onClose();
+				}}
 				aria-label="Close"
 			/>
 			<div className="relative z-10 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
@@ -64,24 +65,33 @@ export function OverrideDialog({
 				</p>
 
 				<div className="mt-4">
-					<label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+					<label htmlFor="override-status" className="mb-1 block text-sm font-medium text-gray-700">
+						Status
+					</label>
 					<select
+						id="override-status"
 						value={status}
 						onChange={(e) => setStatus(e.target.value)}
 						className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
 					>
 						{STATUSES.map((s) => (
-							<option key={s.value} value={s.value}>{s.label}</option>
+							<option key={s.value} value={s.value}>
+								{s.label}
+							</option>
 						))}
 					</select>
 				</div>
 
 				{status === "ED" && (
 					<div className="mt-3">
-						<label className="mb-1 block text-sm font-medium text-gray-700">
+						<label
+							htmlFor="override-dismissal-time"
+							className="mb-1 block text-sm font-medium text-gray-700"
+						>
 							Dismissal Time
 						</label>
 						<input
+							id="override-dismissal-time"
 							type="time"
 							value={dismissalTime}
 							onChange={(e) => setDismissalTime(e.target.value)}

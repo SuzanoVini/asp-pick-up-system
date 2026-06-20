@@ -11,9 +11,7 @@ export function Logo({ collapsed }: { collapsed?: boolean }) {
 			>
 				<Bus size={20} color="var(--color-primary-foreground)" />
 			</div>
-			{!collapsed && (
-				<span className="text-lg font-semibold text-white truncate">{appName}</span>
-			)}
+			{!collapsed && <span className="text-lg font-semibold text-white truncate">{appName}</span>}
 		</div>
 	);
 }

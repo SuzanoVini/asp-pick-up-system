@@ -1,6 +1,6 @@
 import { deriveDropoffAndBooster } from "../dropoff-derivation";
 import type { IntermediateStatus } from "../types";
-import { makeStudent, MONDAY, resetIds } from "./helpers";
+import { MONDAY, makeStudent, resetIds } from "./helpers";
 
 beforeEach(() => resetIds());
 

@@ -1,15 +1,15 @@
-import { createClient } from "@/app/lib/supabase/server";
 import { computeAttendance } from "@/app/lib/engine/compute-attendance";
 import type {
-	Student,
-	Enrollment,
-	CalendarRule,
-	School as EngineSchool,
-	SystemSettings,
-	ManualOverride,
 	AttendanceResult,
+	CalendarRule,
 	DayOfWeek,
+	School as EngineSchool,
+	Enrollment,
+	ManualOverride,
+	Student,
+	SystemSettings,
 } from "@/app/lib/engine/types";
+import { createClient } from "@/app/lib/supabase/server";
 import { getSystemSettings } from "@/app/lib/supabase/settings";
 import { KidsAndSchoolsView } from "./kids-and-schools-view";
 
@@ -105,7 +105,11 @@ function categorizeStudents(
 			schoolName: (school?.name as string) ?? "Unknown",
 			schoolId: (student.school_id as string) ?? "",
 			status: r.status,
-			dismissalTime: r.effectiveDismissalTime ?? (student.dismissal_time as string) ?? (school?.standard_dismissal_time as string) ?? null,
+			dismissalTime:
+				r.effectiveDismissalTime ??
+				(student.dismissal_time as string) ??
+				(school?.standard_dismissal_time as string) ??
+				null,
 			needsBooster: r.needsBooster,
 			isOnRoute: false,
 			isDropOffOnly,
@@ -129,7 +133,7 @@ function categorizeStudents(
 export default async function KidsAndSchoolsPage({ searchParams }: PageProps) {
 	const params = await searchParams;
 	const dateStr = params.date ?? new Date().toISOString().split("T")[0];
-	const date = new Date(dateStr + "T00:00:00");
+	const date = new Date(`${dateStr}T00:00:00`);
 
 	const supabase = await createClient();
 

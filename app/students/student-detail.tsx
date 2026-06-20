@@ -1,8 +1,8 @@
 "use client";
 
+import { differenceInYears } from "date-fns";
 import { ArrowLeft } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { differenceInYears } from "date-fns";
 
 interface StudentDetailProps {
 	student: {
@@ -20,12 +20,30 @@ interface StudentDetailProps {
 		comments_dropoff: string | null;
 	};
 	school?: { name: string } | null;
-	guardians: { id: string; name: string; phone: string | null; email: string | null; is_primary: boolean }[];
-	enrollments: { id: string; start_date: string; end_date: string | null; contract_days: string[]; status: string }[];
+	guardians: {
+		id: string;
+		name: string;
+		phone: string | null;
+		email: string | null;
+		is_primary: boolean;
+	}[];
+	enrollments: {
+		id: string;
+		start_date: string;
+		end_date: string | null;
+		contract_days: string[];
+		status: string;
+	}[];
 	onBack: () => void;
 }
 
-export function StudentDetail({ student, school, guardians, enrollments, onBack }: StudentDetailProps) {
+export function StudentDetail({
+	student,
+	school,
+	guardians,
+	enrollments,
+	onBack,
+}: StudentDetailProps) {
 	const age = student.date_of_birth
 		? differenceInYears(new Date(), new Date(student.date_of_birth))
 		: null;
@@ -33,7 +51,11 @@ export function StudentDetail({ student, school, guardians, enrollments, onBack 
 
 	return (
 		<div>
-			<button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+			<button
+				type="button"
+				onClick={onBack}
+				className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+			>
 				<ArrowLeft size={16} /> Back to list
 			</button>
 			<div className="rounded-lg border border-gray-200 bg-white p-6">
@@ -54,14 +76,45 @@ export function StudentDetail({ student, school, guardians, enrollments, onBack 
 					<div>
 						<h3 className="mb-2 text-sm font-semibold text-gray-500 uppercase">Details</h3>
 						<dl className="space-y-2 text-sm">
-							<div><dt className="text-gray-500">School</dt><dd>{school?.name ?? "-"}</dd></div>
-							<div><dt className="text-gray-500">Date of Birth</dt><dd>{student.date_of_birth ?? "-"}{age !== null ? ` (age ${age})` : ""}</dd></div>
-							<div><dt className="text-gray-500">Home Address</dt><dd>{student.home_address ?? "-"}</dd></div>
-							<div><dt className="text-gray-500">Dismissal Time Override</dt><dd>{student.dismissal_time ?? "-"}</dd></div>
-							<div><dt className="text-gray-500">ED Time Override</dt><dd>{student.early_dismissal_time ?? "-"}</dd></div>
-							<div><dt className="text-gray-500">First Pickup</dt><dd>{student.first_pickup_date ?? "-"}</dd></div>
-							{student.comments_pickup && <div><dt className="text-gray-500">Pickup Comments</dt><dd>{student.comments_pickup}</dd></div>}
-							{student.comments_dropoff && <div><dt className="text-gray-500">Drop-off Comments</dt><dd>{student.comments_dropoff}</dd></div>}
+							<div>
+								<dt className="text-gray-500">School</dt>
+								<dd>{school?.name ?? "-"}</dd>
+							</div>
+							<div>
+								<dt className="text-gray-500">Date of Birth</dt>
+								<dd>
+									{student.date_of_birth ?? "-"}
+									{age !== null ? ` (age ${age})` : ""}
+								</dd>
+							</div>
+							<div>
+								<dt className="text-gray-500">Home Address</dt>
+								<dd>{student.home_address ?? "-"}</dd>
+							</div>
+							<div>
+								<dt className="text-gray-500">Dismissal Time Override</dt>
+								<dd>{student.dismissal_time ?? "-"}</dd>
+							</div>
+							<div>
+								<dt className="text-gray-500">ED Time Override</dt>
+								<dd>{student.early_dismissal_time ?? "-"}</dd>
+							</div>
+							<div>
+								<dt className="text-gray-500">First Pickup</dt>
+								<dd>{student.first_pickup_date ?? "-"}</dd>
+							</div>
+							{student.comments_pickup && (
+								<div>
+									<dt className="text-gray-500">Pickup Comments</dt>
+									<dd>{student.comments_pickup}</dd>
+								</div>
+							)}
+							{student.comments_dropoff && (
+								<div>
+									<dt className="text-gray-500">Drop-off Comments</dt>
+									<dd>{student.comments_dropoff}</dd>
+								</div>
+							)}
 						</dl>
 					</div>
 
@@ -73,7 +126,10 @@ export function StudentDetail({ student, school, guardians, enrollments, onBack 
 							<ul className="space-y-2">
 								{guardians.map((g) => (
 									<li key={g.id} className="rounded border border-gray-100 p-2 text-sm">
-										<div className="font-medium">{g.name} {g.is_primary && <span className="text-xs text-gray-400">(Primary)</span>}</div>
+										<div className="font-medium">
+											{g.name}{" "}
+											{g.is_primary && <span className="text-xs text-gray-400">(Primary)</span>}
+										</div>
 										{g.phone && <div className="text-gray-500">{g.phone}</div>}
 										{g.email && <div className="text-gray-500">{g.email}</div>}
 									</li>

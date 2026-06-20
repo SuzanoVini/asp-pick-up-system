@@ -8,7 +8,11 @@ interface RuleStatusIndicatorProps {
 	isActive: boolean;
 }
 
-function getRuleVisualStatus(startDate: string, endDate: string, isActive: boolean): RuleVisualStatus {
+function getRuleVisualStatus(
+	startDate: string,
+	endDate: string,
+	isActive: boolean,
+): RuleVisualStatus {
 	if (!isActive) return "inactive";
 	const today = new Date().toISOString().split("T")[0];
 	if (endDate < today) return "expired";
@@ -28,11 +32,13 @@ export function RuleStatusIndicator({ endDate, startDate, isActive }: RuleStatus
 	const style = statusStyles[status];
 
 	return (
-		<span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.text}`}>
+		<span
+			className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.text}`}
+		>
 			{style.label}
 		</span>
 	);
 }
 
-export { getRuleVisualStatus };
 export type { RuleVisualStatus };
+export { getRuleVisualStatus };

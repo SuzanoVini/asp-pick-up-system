@@ -1,19 +1,19 @@
 import { format } from "date-fns";
-import { Route, ClipboardList } from "lucide-react";
+import { ClipboardList, Route } from "lucide-react";
 import Link from "next/link";
-import { createClient } from "@/app/lib/supabase/server";
+import { TodaySummary } from "@/app/components/dashboard/today-summary";
 import { computeAttendance } from "@/app/lib/engine/compute-attendance";
 import type {
-	Student,
-	Enrollment,
 	CalendarRule,
-	School,
-	SystemSettings,
-	ManualOverride,
 	DayOfWeek,
+	Enrollment,
+	ManualOverride,
+	School,
+	Student,
+	SystemSettings,
 } from "@/app/lib/engine/types";
+import { createClient } from "@/app/lib/supabase/server";
 import { getSystemSettings } from "@/app/lib/supabase/settings";
-import { TodaySummary } from "@/app/components/dashboard/today-summary";
 
 interface PageProps {
 	searchParams: Promise<{ date?: string }>;
@@ -72,7 +72,7 @@ function toEngineSchool(row: Record<string, unknown>): School {
 export default async function DashboardPage({ searchParams }: PageProps) {
 	const params = await searchParams;
 	const dateStr = params.date ?? new Date().toISOString().split("T")[0];
-	const date = new Date(dateStr + "T00:00:00");
+	const date = new Date(`${dateStr}T00:00:00`);
 
 	const supabase = await createClient();
 
@@ -132,10 +132,12 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 	});
 
 	const schoolsServed = new Set(
-		presentStudents.map((r) => {
-			const student = studentMap.get(r.studentId);
-			return student?.school_id as string;
-		}).filter(Boolean),
+		presentStudents
+			.map((r) => {
+				const student = studentMap.get(r.studentId);
+				return student?.school_id as string;
+			})
+			.filter(Boolean),
 	).size;
 
 	const presentCount = presentStudents.length;

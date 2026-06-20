@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/app/lib/supabase/server";
 import { createEnrollmentSchema, updateEnrollmentSchema } from "@/app/lib/schemas/enrollment";
 import * as enrollmentsDb from "@/app/lib/supabase/enrollments";
+import { createClient } from "@/app/lib/supabase/server";
 import * as studentsDb from "@/app/lib/supabase/students";
 
 export async function createEnrollmentAction(formData: Record<string, unknown>) {
@@ -44,10 +44,7 @@ export async function cancelEnrollmentAction(id: string) {
 
 	await enrollmentsDb.updateEnrollment(supabase, id, { status: "cancelled" });
 
-	const remaining = await enrollmentsDb.countActiveEnrollments(
-		supabase,
-		enrollment.student_id,
-	);
+	const remaining = await enrollmentsDb.countActiveEnrollments(supabase, enrollment.student_id);
 
 	// Cancelling the last active enrollment transitions student to former
 	if (remaining === 0) {

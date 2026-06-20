@@ -1,12 +1,12 @@
 "use client";
 
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { DataTable, type Column } from "@/app/components/ui/data-table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
-import { SchoolForm } from "./school-form";
 import { deleteSchoolAction } from "@/app/actions/schools";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/app/components/ui/data-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { SchoolForm } from "./school-form";
 
 interface School {
 	id: string;

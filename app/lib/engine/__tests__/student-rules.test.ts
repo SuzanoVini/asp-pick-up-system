@@ -1,6 +1,6 @@
 import { applyStudentRules } from "../student-rules";
 import type { IntermediateStatus } from "../types";
-import { makeStudent, makeRule, MONDAY, TUESDAY, resetIds } from "./helpers";
+import { MONDAY, makeRule, makeStudent, resetIds } from "./helpers";
 
 beforeEach(() => resetIds());
 

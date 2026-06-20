@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Pencil, Eye } from "lucide-react";
 import { differenceInYears } from "date-fns";
-import { DataTable, type Column } from "@/app/components/ui/data-table";
+import { Eye, Pencil, Plus } from "lucide-react";
+import { useState } from "react";
+import { type Column, DataTable } from "@/app/components/ui/data-table";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { StudentForm } from "./student-form";
 import { StudentDetail } from "./student-detail";
+import { StudentForm } from "./student-form";
 
-interface School { id: string; name: string; }
+interface School {
+	id: string;
+	name: string;
+}
 
 interface Student {
 	id: string;
@@ -28,15 +31,34 @@ interface Student {
 interface Props {
 	students: Student[];
 	schools: School[];
-	guardiansByStudent: Record<string, { id: string; name: string; phone: string | null; email: string | null; is_primary: boolean }[]>;
-	enrollmentsByStudent: Record<string, { id: string; start_date: string; end_date: string | null; contract_days: string[]; status: string }[]>;
+	guardiansByStudent: Record<
+		string,
+		{ id: string; name: string; phone: string | null; email: string | null; is_primary: boolean }[]
+	>;
+	enrollmentsByStudent: Record<
+		string,
+		{
+			id: string;
+			start_date: string;
+			end_date: string | null;
+			contract_days: string[];
+			status: string;
+		}[]
+	>;
 }
 
-export function StudentList({ students, schools, guardiansByStudent, enrollmentsByStudent }: Props) {
+export function StudentList({
+	students,
+	schools,
+	guardiansByStudent,
+	enrollmentsByStudent,
+}: Props) {
 	const [showForm, setShowForm] = useState(false);
 	const [editing, setEditing] = useState<Student | null>(null);
 	const [viewing, setViewing] = useState<Student | null>(null);
-	const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "former">("active");
+	const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "former">(
+		"active",
+	);
 	const [schoolFilter, setSchoolFilter] = useState<string>("all");
 
 	const schoolMap = new Map(schools.map((s) => [s.id, s.name]));
@@ -53,7 +75,7 @@ export function StudentList({ students, schools, guardiansByStudent, enrollments
 			key: "school_id",
 			label: "School",
 			sortable: true,
-			render: (r) => (r.school_id ? schoolMap.get(r.school_id) ?? "-" : "-"),
+			render: (r) => (r.school_id ? (schoolMap.get(r.school_id) ?? "-") : "-"),
 		},
 		{
 			key: "date_of_birth",
@@ -65,7 +87,9 @@ export function StudentList({ students, schools, guardiansByStudent, enrollments
 					<span>
 						{age}
 						{age < 9 && (
-							<span className="ml-1 inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-xs text-orange-800">B</span>
+							<span className="ml-1 inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-xs text-orange-800">
+								B
+							</span>
 						)}
 					</span>
 				);
@@ -74,7 +98,7 @@ export function StudentList({ students, schools, guardiansByStudent, enrollments
 		{
 			key: "drop_off_only",
 			label: "Type",
-			render: (r) => r.drop_off_only ? <StatusBadge status="D" type="attendance" /> : null,
+			render: (r) => (r.drop_off_only ? <StatusBadge status="D" type="attendance" /> : null),
 		},
 		{
 			key: "status",
@@ -89,7 +113,10 @@ export function StudentList({ students, schools, guardiansByStudent, enrollments
 				<div className="flex gap-2">
 					<button
 						type="button"
-						onClick={(e) => { e.stopPropagation(); setViewing(r); }}
+						onClick={(e) => {
+							e.stopPropagation();
+							setViewing(r);
+						}}
 						className="rounded p-1 text-gray-400 hover:text-gray-600"
 						aria-label="View details"
 					>
@@ -97,7 +124,11 @@ export function StudentList({ students, schools, guardiansByStudent, enrollments
 					</button>
 					<button
 						type="button"
-						onClick={(e) => { e.stopPropagation(); setEditing(r); setShowForm(true); }}
+						onClick={(e) => {
+							e.stopPropagation();
+							setEditing(r);
+							setShowForm(true);
+						}}
 						className="rounded p-1 text-gray-400 hover:text-gray-600"
 						aria-label="Edit"
 					>
@@ -121,7 +152,16 @@ export function StudentList({ students, schools, guardiansByStudent, enrollments
 	}
 
 	if (showForm) {
-		return <StudentForm student={editing ?? undefined} schools={schools} onClose={() => { setShowForm(false); setEditing(null); }} />;
+		return (
+			<StudentForm
+				student={editing ?? undefined}
+				schools={schools}
+				onClose={() => {
+					setShowForm(false);
+					setEditing(null);
+				}}
+			/>
+		);
 	}
 
 	return (
@@ -149,13 +189,18 @@ export function StudentList({ students, schools, guardiansByStudent, enrollments
 					>
 						<option value="all">All Schools</option>
 						{schools.map((s) => (
-							<option key={s.id} value={s.id}>{s.name}</option>
+							<option key={s.id} value={s.id}>
+								{s.name}
+							</option>
 						))}
 					</select>
 				</div>
 				<button
 					type="button"
-					onClick={() => { setEditing(null); setShowForm(true); }}
+					onClick={() => {
+						setEditing(null);
+						setShowForm(true);
+					}}
 					className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
 				>
 					<Plus size={16} />

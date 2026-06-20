@@ -1,16 +1,15 @@
 import { computeAttendance } from "../compute-attendance";
 import type { AttendanceInput } from "../types";
 import {
-	makeStudent,
+	MONDAY,
 	makeEnrollment,
+	makeOverride,
 	makeRule,
 	makeSchool,
 	makeSettings,
-	makeOverride,
-	MONDAY,
-	TUESDAY,
-	WEDNESDAY,
+	makeStudent,
 	resetIds,
+	WEDNESDAY,
 } from "./helpers";
 
 beforeEach(() => resetIds());
@@ -86,10 +85,7 @@ describe("computeAttendance", () => {
 				students: [s1, s2],
 				enrollments: [e1, e2],
 				rules: [holidayRule, edRule],
-				schools: [
-					makeSchool({ id: "school-A" }),
-					makeSchool({ id: "school-B" }),
-				],
+				schools: [makeSchool({ id: "school-A" }), makeSchool({ id: "school-B" })],
 			}),
 		);
 

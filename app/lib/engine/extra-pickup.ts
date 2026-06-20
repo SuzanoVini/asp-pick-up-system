@@ -1,5 +1,5 @@
-import type { CalendarRule, IntermediateStatus } from "./types";
 import { isRuleActiveForDate } from "./rule-utils";
+import type { CalendarRule, IntermediateStatus } from "./types";
 
 export function applyExtraPickup(
 	date: Date,

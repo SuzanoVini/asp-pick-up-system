@@ -1,10 +1,10 @@
 import { differenceInCalendarWeeks } from "date-fns";
-import type { CalendarRule, IntermediateStatus } from "./types";
 import { isRuleActiveForDate } from "./rule-utils";
+import type { CalendarRule, IntermediateStatus } from "./types";
 
 function isAbsentWeekForAlternating(date: Date, rule: CalendarRule): boolean {
 	if (!rule.startWeek) return false;
-	const startDate = new Date(rule.startDate + "T00:00:00");
+	const startDate = new Date(`${rule.startDate}T00:00:00`);
 	const weeksSinceStart = differenceInCalendarWeeks(date, startDate, { weekStartsOn: 1 });
 	const isEvenWeek = weeksSinceStart % 2 === 0;
 

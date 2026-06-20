@@ -19,7 +19,7 @@ export function deriveDropoffAndBooster(
 
 		const needsBooster =
 			student?.dateOfBirth != null &&
-			differenceInYears(date, new Date(student.dateOfBirth + "T00:00:00")) < 9;
+			differenceInYears(date, new Date(`${student.dateOfBirth}T00:00:00`)) < 9;
 
 		const studentConflicts = conflicts.filter((c) => c.studentId === s.studentId);
 

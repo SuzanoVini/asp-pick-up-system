@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FormField } from "@/app/components/ui/form-field";
 import { createStaffAction, updateStaffAction } from "@/app/actions/staff";
+import { FormField } from "@/app/components/ui/form-field";
 
 interface StaffFormProps {
 	staff?: {
@@ -38,9 +38,7 @@ export function StaffForm({ staff, onClose }: StaffFormProps) {
 		setErrors({});
 
 		const data = { name, capabilities, is_active: isActive };
-		const result = isEdit
-			? await updateStaffAction(staff.id, data)
-			: await createStaffAction(data);
+		const result = isEdit ? await updateStaffAction(staff.id, data) : await createStaffAction(data);
 
 		setSaving(false);
 		if (result.error) {

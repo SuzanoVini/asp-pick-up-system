@@ -1,5 +1,5 @@
-import type { CalendarRule, IntermediateStatus, Student } from "./types";
 import { isRuleActiveForDate } from "./rule-utils";
+import type { CalendarRule, IntermediateStatus, Student } from "./types";
 
 export function applySchoolRules(
 	date: Date,

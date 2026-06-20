@@ -1,9 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export async function getWaitlist(
-	supabase: SupabaseClient,
-	filters?: { status?: string },
-) {
+export async function getWaitlist(supabase: SupabaseClient, filters?: { status?: string }) {
 	let query = supabase
 		.from("asp_waitlist")
 		.select("*")
@@ -19,11 +16,7 @@ export async function getWaitlist(
 }
 
 export async function getWaitlistById(supabase: SupabaseClient, id: string) {
-	const { data, error } = await supabase
-		.from("asp_waitlist")
-		.select("*")
-		.eq("id", id)
-		.single();
+	const { data, error } = await supabase.from("asp_waitlist").select("*").eq("id", id).single();
 
 	if (error) throw error;
 	return data;

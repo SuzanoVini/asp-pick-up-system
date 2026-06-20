@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { AlertTriangle, PenLine } from "lucide-react";
+import { useState } from "react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { OverrideDialog } from "./override-dialog";
 
@@ -91,9 +91,7 @@ export function AttendanceView({ rows, date, ruleNames }: AttendanceViewProps) {
 								<td className="px-4 py-3">
 									<StatusBadge status={row.status} type="attendance" />
 								</td>
-								<td className="px-4 py-3 text-gray-600">
-									{row.effectiveDismissalTime ?? "-"}
-								</td>
+								<td className="px-4 py-3 text-gray-600">{row.effectiveDismissalTime ?? "-"}</td>
 								<td className="px-4 py-3">
 									{row.conflicts.length > 0 ? (
 										<div className="flex items-center gap-1 text-yellow-700">
@@ -126,9 +124,7 @@ export function AttendanceView({ rows, date, ruleNames }: AttendanceViewProps) {
 			</div>
 
 			{sorted.length === 0 && (
-				<p className="py-8 text-center text-sm text-gray-500">
-					No students found for this date.
-				</p>
+				<p className="py-8 text-center text-sm text-gray-500">No students found for this date.</p>
 			)}
 
 			{overrideTarget && (

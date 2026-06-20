@@ -36,15 +36,8 @@ export async function getCalendarRuleById(supabase: SupabaseClient, id: string) 
 	return data;
 }
 
-export async function createCalendarRule(
-	supabase: SupabaseClient,
-	input: Record<string, unknown>,
-) {
-	const { data, error } = await supabase
-		.from("asp_calendar_rules")
-		.insert(input)
-		.select()
-		.single();
+export async function createCalendarRule(supabase: SupabaseClient, input: Record<string, unknown>) {
+	const { data, error } = await supabase.from("asp_calendar_rules").insert(input).select().single();
 
 	if (error) throw error;
 	return data;

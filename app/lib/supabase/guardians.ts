@@ -1,9 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export async function getGuardians(
-	supabase: SupabaseClient,
-	filters?: { studentId?: string },
-) {
+export async function getGuardians(supabase: SupabaseClient, filters?: { studentId?: string }) {
 	let query = supabase
 		.from("asp_guardians")
 		.select("*, asp_students(name)")
@@ -30,10 +27,7 @@ export async function getGuardianById(supabase: SupabaseClient, id: string) {
 	return data;
 }
 
-export async function createGuardian(
-	supabase: SupabaseClient,
-	input: Record<string, unknown>,
-) {
+export async function createGuardian(supabase: SupabaseClient, input: Record<string, unknown>) {
 	const { data, error } = await supabase.from("asp_guardians").insert(input).select().single();
 	if (error) throw error;
 	return data;

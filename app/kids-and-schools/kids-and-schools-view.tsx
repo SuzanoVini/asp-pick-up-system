@@ -1,7 +1,7 @@
 "use client";
 
+import { CalendarOff, Users, UserX } from "lucide-react";
 import { useState } from "react";
-import { Users, UserX, CalendarOff } from "lucide-react";
 import { SchoolGroup } from "./school-group";
 
 interface SectionedStudent {
@@ -28,7 +28,7 @@ function groupBySchool(students: SectionedStudent[]): Record<string, SectionedSt
 	const groups: Record<string, SectionedStudent[]> = {};
 	for (const s of students) {
 		if (!groups[s.schoolName]) groups[s.schoolName] = [];
-		groups[s.schoolName]!.push(s);
+		groups[s.schoolName]?.push(s);
 	}
 	return groups;
 }
@@ -67,9 +67,7 @@ export function KidsAndSchoolsView({
 					<span>Absent: {absent.length}</span>
 					<span>Not Scheduled: {notScheduled.length}</span>
 					{unrouted.length > 0 && (
-						<span className="font-medium text-red-600">
-							Unrouted: {unrouted.length}
-						</span>
+						<span className="font-medium text-red-600">Unrouted: {unrouted.length}</span>
 					)}
 				</div>
 				<div className="flex gap-2">
@@ -95,19 +93,13 @@ export function KidsAndSchoolsView({
 				<div className="mb-6">
 					<div className="mb-3 flex items-center gap-2">
 						<Users size={18} className="text-green-600" />
-						<h2 className="text-lg font-semibold text-gray-800">
-							Present ({present.length})
-						</h2>
+						<h2 className="text-lg font-semibold text-gray-800">Present ({present.length})</h2>
 					</div>
 					<div className="space-y-3">
 						{Object.entries(presentBySchool)
 							.sort(([a], [b]) => a.localeCompare(b))
 							.map(([schoolName, students]) => (
-								<SchoolGroup
-									key={schoolName}
-									schoolName={schoolName}
-									students={students}
-								/>
+								<SchoolGroup key={schoolName} schoolName={schoolName} students={students} />
 							))}
 					</div>
 				</div>
@@ -126,11 +118,7 @@ export function KidsAndSchoolsView({
 						{Object.entries(dropOffBySchool)
 							.sort(([a], [b]) => a.localeCompare(b))
 							.map(([schoolName, students]) => (
-								<SchoolGroup
-									key={schoolName}
-									schoolName={schoolName}
-									students={students}
-								/>
+								<SchoolGroup key={schoolName} schoolName={schoolName} students={students} />
 							))}
 					</div>
 				</div>
@@ -141,9 +129,7 @@ export function KidsAndSchoolsView({
 				<div className="mb-6">
 					<div className="mb-3 flex items-center gap-2">
 						<UserX size={18} className="text-red-500" />
-						<h2 className="text-lg font-semibold text-gray-800">
-							Absent ({absent.length})
-						</h2>
+						<h2 className="text-lg font-semibold text-gray-800">Absent ({absent.length})</h2>
 					</div>
 					<div className="rounded-lg border border-gray-200 bg-white p-4">
 						<div className="space-y-1">
@@ -188,11 +174,12 @@ export function KidsAndSchoolsView({
 				</div>
 			)}
 
-			{present.length === 0 && dropOff.length === 0 && absent.length === 0 && notScheduled.length === 0 && (
-				<p className="py-8 text-center text-sm text-gray-500">
-					No students found for this date.
-				</p>
-			)}
+			{present.length === 0 &&
+				dropOff.length === 0 &&
+				absent.length === 0 &&
+				notScheduled.length === 0 && (
+					<p className="py-8 text-center text-sm text-gray-500">No students found for this date.</p>
+				)}
 		</div>
 	);
 }

@@ -22,9 +22,7 @@ export function StudentRow({
 	return (
 		<div
 			className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-				isOnRoute
-					? "border-blue-200 bg-blue-50"
-					: "border-gray-100 bg-white"
+				isOnRoute ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-white"
 			}`}
 		>
 			<div className="flex items-center gap-2">
@@ -43,9 +41,7 @@ export function StudentRow({
 			<div className="flex items-center gap-3">
 				<span
 					className={`text-sm ${
-						isNonStandardDismissal
-							? "font-medium text-yellow-700"
-							: "text-gray-500"
+						isNonStandardDismissal ? "font-medium text-yellow-700" : "text-gray-500"
 					}`}
 				>
 					{dismissalTime ?? "-"}

@@ -1,13 +1,13 @@
-import type { AttendanceInput, AttendanceResult } from "./types";
 import { computeBaseSchedule } from "./base-schedule";
+import { detectConflicts } from "./conflict-detection";
+import { applyDaySwitch } from "./day-switch";
 import { applyDistrictRules } from "./district-rules";
+import { deriveDropoffAndBooster } from "./dropoff-derivation";
+import { applyEarlyDismissal } from "./early-dismissal";
+import { applyExtraPickup } from "./extra-pickup";
 import { applySchoolRules } from "./school-rules";
 import { applyStudentRules } from "./student-rules";
-import { applyEarlyDismissal } from "./early-dismissal";
-import { applyDaySwitch } from "./day-switch";
-import { applyExtraPickup } from "./extra-pickup";
-import { detectConflicts } from "./conflict-detection";
-import { deriveDropoffAndBooster } from "./dropoff-derivation";
+import type { AttendanceInput, AttendanceResult } from "./types";
 
 export function computeAttendance(input: AttendanceInput): AttendanceResult[] {
 	const { date, students, enrollments, rules, schools, settings, existingOverrides } = input;
@@ -29,14 +29,11 @@ export function computeAttendance(input: AttendanceInput): AttendanceResult[] {
 			const needsBooster =
 				student?.dateOfBirth != null
 					? (() => {
-							const dob = new Date(student.dateOfBirth + "T00:00:00");
+							const dob = new Date(`${student.dateOfBirth}T00:00:00`);
 							const ageDiff = date.getFullYear() - dob.getFullYear();
 							const monthDiff = date.getMonth() - dob.getMonth();
 							const dayDiff = date.getDate() - dob.getDate();
-							const age =
-								monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)
-									? ageDiff - 1
-									: ageDiff;
+							const age = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? ageDiff - 1 : ageDiff;
 							return age < 9;
 						})()
 					: false;

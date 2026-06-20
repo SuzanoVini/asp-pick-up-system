@@ -1,5 +1,5 @@
 import { computeBaseSchedule } from "../base-schedule";
-import { makeStudent, makeEnrollment, MONDAY, TUESDAY, SATURDAY, resetIds } from "./helpers";
+import { MONDAY, makeEnrollment, makeStudent, resetIds, SATURDAY, TUESDAY } from "./helpers";
 
 beforeEach(() => resetIds());
 

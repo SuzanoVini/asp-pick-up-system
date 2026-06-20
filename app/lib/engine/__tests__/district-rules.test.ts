@@ -1,6 +1,6 @@
 import { applyDistrictRules } from "../district-rules";
 import type { IntermediateStatus } from "../types";
-import { makeRule, MONDAY, TUESDAY, resetIds } from "./helpers";
+import { MONDAY, makeRule, resetIds } from "./helpers";
 
 beforeEach(() => resetIds());
 

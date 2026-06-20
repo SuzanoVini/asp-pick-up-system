@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/app/lib/supabase/server";
 import {
 	createCalendarRuleSchema,
 	updateCalendarRuleSchema,
 } from "@/app/lib/schemas/calendar-rule";
 import * as rulesDb from "@/app/lib/supabase/calendar-rules";
+import { createClient } from "@/app/lib/supabase/server";
 
 export async function createCalendarRuleAction(formData: Record<string, unknown>) {
 	const parsed = createCalendarRuleSchema.safeParse(formData);
@@ -22,10 +22,7 @@ export async function createCalendarRuleAction(formData: Record<string, unknown>
 	return { data };
 }
 
-export async function updateCalendarRuleAction(
-	id: string,
-	formData: Record<string, unknown>,
-) {
+export async function updateCalendarRuleAction(id: string, formData: Record<string, unknown>) {
 	const parsed = updateCalendarRuleSchema.safeParse(formData);
 	if (!parsed.success) {
 		return { error: parsed.error.flatten().fieldErrors };

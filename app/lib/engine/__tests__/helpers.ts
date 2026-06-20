@@ -1,14 +1,11 @@
 import type {
+	AttendanceStatus,
 	CalendarRule,
-	DayOfWeek,
 	Enrollment,
 	ManualOverride,
 	School,
 	Student,
 	SystemSettings,
-	AttendanceStatus,
-	RuleType,
-	TargetType,
 } from "../types";
 
 let idCounter = 0;
@@ -35,10 +32,7 @@ export function makeStudent(overrides: Partial<Student> = {}): Student {
 	};
 }
 
-export function makeEnrollment(
-	studentId: string,
-	overrides: Partial<Enrollment> = {},
-): Enrollment {
+export function makeEnrollment(studentId: string, overrides: Partial<Enrollment> = {}): Enrollment {
 	return {
 		id: nextId(),
 		studentId,

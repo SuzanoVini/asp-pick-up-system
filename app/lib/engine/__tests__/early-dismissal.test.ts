@@ -1,6 +1,6 @@
 import { applyEarlyDismissal } from "../early-dismissal";
 import type { IntermediateStatus } from "../types";
-import { makeStudent, makeRule, makeSchool, makeSettings, MONDAY, resetIds } from "./helpers";
+import { MONDAY, makeRule, makeSchool, makeSettings, makeStudent, resetIds } from "./helpers";
 
 beforeEach(() => resetIds());
 

@@ -54,15 +54,8 @@ export async function getEnrollmentById(supabase: SupabaseClient, id: string) {
 	return data;
 }
 
-export async function createEnrollment(
-	supabase: SupabaseClient,
-	input: Record<string, unknown>,
-) {
-	const { data, error } = await supabase
-		.from("asp_enrollments")
-		.insert(input)
-		.select()
-		.single();
+export async function createEnrollment(supabase: SupabaseClient, input: Record<string, unknown>) {
+	const { data, error } = await supabase.from("asp_enrollments").insert(input).select().single();
 
 	if (error) throw error;
 	return data;

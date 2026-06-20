@@ -3,10 +3,7 @@ import { SchoolList } from "./school-list";
 
 export default async function SchoolsPage() {
 	const supabase = await createClient();
-	const { data: schools } = await supabase
-		.from("asp_schools")
-		.select("*")
-		.order("name");
+	const { data: schools } = await supabase.from("asp_schools").select("*").order("name");
 
 	return (
 		<div>

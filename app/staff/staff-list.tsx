@@ -1,12 +1,12 @@
 "use client";
 
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { DataTable, type Column } from "@/app/components/ui/data-table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
-import { StaffForm } from "./staff-form";
 import { deleteStaffAction } from "@/app/actions/staff";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/app/components/ui/data-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { StaffForm } from "./staff-form";
 
 interface Staff {
 	id: string;
@@ -56,7 +56,11 @@ export function StaffList({ staffMembers }: { staffMembers: Staff[] }) {
 				<div className="flex gap-2">
 					<button
 						type="button"
-						onClick={(e) => { e.stopPropagation(); setEditing(r); setShowForm(true); }}
+						onClick={(e) => {
+							e.stopPropagation();
+							setEditing(r);
+							setShowForm(true);
+						}}
 						className="rounded p-1 text-gray-400 hover:text-gray-600"
 						aria-label="Edit"
 					>
@@ -64,7 +68,10 @@ export function StaffList({ staffMembers }: { staffMembers: Staff[] }) {
 					</button>
 					<button
 						type="button"
-						onClick={(e) => { e.stopPropagation(); setDeleting(r); }}
+						onClick={(e) => {
+							e.stopPropagation();
+							setDeleting(r);
+						}}
 						className="rounded p-1 text-gray-400 hover:text-red-600"
 						aria-label="Delete"
 					>
@@ -76,7 +83,15 @@ export function StaffList({ staffMembers }: { staffMembers: Staff[] }) {
 	];
 
 	if (showForm) {
-		return <StaffForm staff={editing ?? undefined} onClose={() => { setShowForm(false); setEditing(null); }} />;
+		return (
+			<StaffForm
+				staff={editing ?? undefined}
+				onClose={() => {
+					setShowForm(false);
+					setEditing(null);
+				}}
+			/>
+		);
 	}
 
 	return (
@@ -84,7 +99,10 @@ export function StaffList({ staffMembers }: { staffMembers: Staff[] }) {
 			<div className="mb-4 flex justify-end">
 				<button
 					type="button"
-					onClick={() => { setEditing(null); setShowForm(true); }}
+					onClick={() => {
+						setEditing(null);
+						setShowForm(true);
+					}}
 					className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
 				>
 					<Plus size={16} />

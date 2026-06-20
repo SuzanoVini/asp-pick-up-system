@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ChevronUp, ChevronDown, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 
 export interface Column<T> {
 	key: string;
@@ -92,9 +92,9 @@ export function DataTable<T extends Record<string, unknown>>({
 								>
 									<span className="inline-flex items-center gap-1">
 										{col.label}
-										{col.sortable && sortKey === col.key && (
-											sortDir === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-										)}
+										{col.sortable &&
+											sortKey === col.key &&
+											(sortDir === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
 									</span>
 								</th>
 							))}
@@ -103,7 +103,10 @@ export function DataTable<T extends Record<string, unknown>>({
 					<tbody className="divide-y divide-gray-200 bg-white">
 						{sorted.length === 0 ? (
 							<tr>
-								<td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-gray-500">
+								<td
+									colSpan={columns.length}
+									className="px-4 py-8 text-center text-sm text-gray-500"
+								>
 									{emptyMessage}
 								</td>
 							</tr>
@@ -116,7 +119,7 @@ export function DataTable<T extends Record<string, unknown>>({
 								>
 									{columns.map((col) => (
 										<td key={col.key} className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
-											{col.render ? col.render(row) : (row[col.key] as React.ReactNode) ?? "-"}
+											{col.render ? col.render(row) : ((row[col.key] as React.ReactNode) ?? "-")}
 										</td>
 									))}
 								</tr>

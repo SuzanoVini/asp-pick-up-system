@@ -37,10 +37,7 @@ export async function getStudentById(supabase: SupabaseClient, id: string) {
 	return data;
 }
 
-export async function createStudent(
-	supabase: SupabaseClient,
-	input: Record<string, unknown>,
-) {
+export async function createStudent(supabase: SupabaseClient, input: Record<string, unknown>) {
 	const { data, error } = await supabase.from("asp_students").insert(input).select().single();
 	if (error) throw error;
 	return data;
