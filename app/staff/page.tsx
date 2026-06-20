@@ -1,8 +1,17 @@
-export default function StaffPage() {
+import { createClient } from "@/app/lib/supabase/server";
+import { StaffList } from "./staff-list";
+
+export default async function StaffPage() {
+	const supabase = await createClient();
+	const { data: staff } = await supabase
+		.from("asp_staff")
+		.select("*")
+		.order("name");
+
 	return (
 		<div>
-			<h1 className="text-2xl font-bold">Staff</h1>
-			<p className="mt-2 text-gray-500">Manage staff members and their driver/helper capabilities.</p>
+			<h1 className="mb-6 text-2xl font-bold">Staff</h1>
+			<StaffList staffMembers={staff ?? []} />
 		</div>
 	);
 }
