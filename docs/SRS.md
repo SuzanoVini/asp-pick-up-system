@@ -108,7 +108,7 @@ Cannot:
 |----|-------------|
 | FR-SC01 | Schools have a name, address, standard dismissal time (default 15:00), early dismissal time (default 14:00), and status (active/inactive). |
 | FR-SC02 | Inactive schools remain in the system for historical reference but are hidden from new assignment UIs by default. |
-| FR-SC03 | Schools shall store geocoded latitude/longitude, populated from the address when the geocoding service is available. |
+| FR-SC03 | Schools shall store geocoded latitude/longitude, populated automatically from the school address on create/update when the Google Maps geocoding service is configured. |
 
 ### 5.4 Enrollment Management
 
@@ -241,10 +241,10 @@ The system shall support nine calendar rule types:
 |----|-------------|
 | FR-RG01 | Route generation collects routable students (status P, E, or ED, excluding drop_off_only students). |
 | FR-RG02 | Students are auto-assigned to vehicles optimizing by school proximity, respecting vehicle seat capacity (`kids_seats`). |
-| FR-RG03 | Route order is suggested starting from a configured route origin (program location), sorting by nearest school. If no origin is configured, school-to-school distances are used without an origin leg. |
+| FR-RG03 | Route order is suggested starting from a configured route origin (program location), sorting by nearest school. When Google Maps is configured, ordering uses driving distance; otherwise it falls back to stored coordinates and straight-line distance. If no origin is configured, school-to-school distances are used without an origin leg. |
 | FR-RG04 | Booster-required students are flagged. A warning is shown when booster count exceeds vehicle booster capacity. |
 | FR-RG05 | Available staff (explicit date-specific availability entries) are auto-assigned to vehicles by role. |
-| FR-RG06 | Distance and duration between consecutive school stops are calculated when the geocoding service is available. Distance is recorded only on the first student at each school stop to avoid inflating totals. |
+| FR-RG06 | Distance and duration between consecutive school stops are calculated when Google Maps and school coordinates are available. Distance is recorded only on the first student at each school stop to avoid inflating totals. |
 | FR-RG07 | Route generation materializes attendance if not already materialized. |
 | FR-RG08 | Each vehicle block in the route planner shall show booster capacity and the number of booster-required students currently assigned to that vehicle. |
 
@@ -402,7 +402,7 @@ The system is acceptable when:
 5. All nine calendar rule types are implemented with passing tests.
 6. Attendance computation correctly handles all rule types, conflicts, N/E isolation, and manual overrides.
 7. The Kids & Schools view correctly groups students into Present, Drop-off Only, Absent, and Not Scheduled sections.
-8. Route generation produces distance-optimized suggestions respecting vehicle capacity.
+8. Route generation produces distance-optimized suggestions respecting vehicle capacity, using Google driving distance when configured and coordinate fallback otherwise.
 9. Route editing supports drag-and-drop with duplicate prevention and capacity validation.
 10. Route readiness validation enforces all blockers and warnings before PDF export.
 11. Per-vehicle PDF export follows the specified naming convention and content format.

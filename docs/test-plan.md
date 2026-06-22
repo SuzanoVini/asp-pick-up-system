@@ -125,6 +125,12 @@ The rule engine is a set of pure TypeScript functions with no database dependenc
 
 ### 2.2 Distance Handling
 
+- School create/update geocodes valid addresses when GOOGLE_MAPS_API_KEY is configured
+- Bad or unresolvable school addresses return a field-level address error
+- Clearing a school address clears stored lat/lng
+- Google Distance Matrix responses are converted from meters/seconds to km/minutes
+- Route generation uses explicit Google driving-distance school order when available
+- Route generation falls back without throwing when GOOGLE_MAPS_API_KEY is not configured
 - Distance is recorded only on the first student at each school stop
 - Subsequent same-school students have NULL distance
 - total_distance_km sums only non-null distance values

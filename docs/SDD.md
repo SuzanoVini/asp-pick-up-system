@@ -315,7 +315,7 @@ Only the Present section feeds route generation. Drop-off Only students appear f
 1. Collect routable students (P, E, ED; excluding `drop_off_only`)
 2. Group by school (geocoded location)
 3. Assign to vehicles by school proximity, respecting `kids_seats` capacity
-4. Suggest route order: origin -> nearest school -> next nearest (heuristic, not guaranteed optimal)
+4. Suggest route order: origin -> nearest school -> next nearest (Google driving distance when configured; coordinate fallback otherwise)
 5. Flag booster-required students (age < 9)
 6. Assign available staff by role
 7. Calculate school-to-school distances (first student per school only)
@@ -324,6 +324,8 @@ Only the Present section feeds route generation. Drop-off Only students appear f
 ### 9.2 Distance Handling
 
 - Distance is calculated per school-to-school leg, not per student
+- Google Maps Distance Matrix is used for route ordering, leg distance, and duration when `GOOGLE_MAPS_API_KEY` is configured
+- If Google Maps is not configured or a leg cannot be resolved, route generation continues with nullable distance fields and coordinate-based fallback ordering
 - Only the first student row at each school stores the distance value; subsequent same-school rows have NULL distance
 - `total_distance_km` on the route sums non-null distance values only
 - Route origin (program location) is configurable via settings. If not configured, school-to-school ordering is used without an origin leg.
@@ -361,29 +363,29 @@ Eight checks run before PDF export. Blockers prevent export unless an owner expl
 
 ```typescript
 interface GeocodingService {
-  geocode(address: string): Promise<{ lat: number; lng: number }>
-  distance(from: LatLng, to: LatLng): Promise<{ km: number; minutes: number }>
+  geocode(address: string): Promise<{ lat: number; lng: number } | null>
+  distance(from: LatLng, to: LatLng): Promise<{ km: number; minutes: number } | null>
   distanceMatrix(origins: LatLng[], destinations: LatLng[]): Promise<DistanceMatrix>
 }
 ```
 
-The interface supports provider swapping (e.g., Google Maps, Mapbox). If no provider is configured, distance fields are nullable and route generation works without distance optimization.
+The interface supports provider swapping. The current implementation includes `GoogleDistanceService` and `NullDistanceService`. If no provider is configured, distance fields are nullable and route generation falls back to the deterministic coordinate-based ordering in the optimizer.
 
 ### 10.2 Caching Strategy
 
 | Cache | Storage | TTL |
 |-------|---------|-----|
 | School geocodes | `asp_schools.lat`/`asp_schools.lng` | Permanent until address changes |
-| Distance legs | `asp_distance_cache` table (keyed by provider + coordinates + mode) | 30 days |
+| Distance legs | `asp_distance_cache` table (keyed by provider + coordinates + mode) | Persistent until overwritten |
 
-Route generation checks the cache before calling the API. Cache hits avoid API costs entirely. Stale entries are refreshed on next request.
+School create/update geocodes the address when `GOOGLE_MAPS_API_KEY` is configured. Route generation checks the distance cache before calling Google Maps Distance Matrix. Cache hits avoid API costs entirely. Cache writes are best-effort so route generation can still succeed if cache writes are restricted by RLS.
 
 ### 10.3 API Cost Control
 
-- Schools are geocoded on create/update only; not re-geocoded unless address changes
-- Distance matrix requests are queued, not fired in parallel
-- 429 responses are handled with exponential backoff
-- API usage is logged for cost monitoring
+- Schools are geocoded on create/update only
+- Clearing a school address clears the stored coordinates
+- Distance lookups are cached by rounded origin/destination coordinates, provider, and travel mode
+- Route generation continues if Google Maps is unavailable for an individual leg
 
 ---
 

@@ -1,6 +1,5 @@
 import { differenceInYears } from "date-fns";
-import type { AttendanceResult } from "../engine/types";
-import type { RouteGenerationInput, RouteGenerationResult, VehicleRoute, RouteStop } from "./types";
+import type { RouteGenerationInput, RouteGenerationResult, RouteStop, VehicleRoute } from "./types";
 
 interface RoutableStudent {
 	id: string;
@@ -22,9 +21,12 @@ interface SchoolGroup {
 	students: RoutableStudent[];
 }
 
-export function collectRoutableStudents(
-	input: RouteGenerationInput,
-): RoutableStudent[] {
+interface GeocodedSchoolGroup extends SchoolGroup {
+	lat: number;
+	lng: number;
+}
+
+export function collectRoutableStudents(input: RouteGenerationInput): RoutableStudent[] {
 	const routableStatuses = new Set(["P", "E", "ED"]);
 
 	const results: RoutableStudent[] = [];
@@ -74,26 +76,20 @@ export function groupBySchool(
 				students: [],
 			});
 		}
-		groups.get(student.schoolId)!.students.push(student);
+		const group = groups.get(student.schoolId);
+		if (group) group.students.push(student);
 	}
 
 	return Array.from(groups.values());
 }
 
-function haversineDistance(
-	lat1: number,
-	lng1: number,
-	lat2: number,
-	lng2: number,
-): number {
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
 	const R = 6371;
 	const dLat = ((lat2 - lat1) * Math.PI) / 180;
 	const dLng = ((lng2 - lng1) * Math.PI) / 180;
 	const a =
 		Math.sin(dLat / 2) ** 2 +
-		Math.cos((lat1 * Math.PI) / 180) *
-			Math.cos((lat2 * Math.PI) / 180) *
-			Math.sin(dLng / 2) ** 2;
+		Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
 	return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -104,7 +100,7 @@ export function sortSchoolsByDistance(
 ): SchoolGroup[] {
 	if (groups.length <= 1) return groups;
 
-	const geocoded = groups.filter((g) => g.lat !== null && g.lng !== null);
+	const geocoded = groups.filter((g): g is GeocodedSchoolGroup => g.lat !== null && g.lng !== null);
 	const ungeocoded = groups.filter((g) => g.lat === null || g.lng === null);
 
 	if (geocoded.length === 0) return groups;
@@ -112,15 +108,15 @@ export function sortSchoolsByDistance(
 	const sorted: SchoolGroup[] = [];
 	const remaining = [...geocoded];
 
-	let currentLat = originLat ?? geocoded[0].lat!;
-	let currentLng = originLng ?? geocoded[0].lng!;
+	let currentLat = originLat ?? geocoded[0].lat;
+	let currentLng = originLng ?? geocoded[0].lng;
 
 	if (originLat === null || originLng === null) {
-		sorted.push(remaining.shift()!);
-		if (sorted[0]) {
-			currentLat = sorted[0].lat!;
-			currentLng = sorted[0].lng!;
-		}
+		const first = remaining.shift();
+		if (!first) return [...sorted, ...ungeocoded];
+		sorted.push(first);
+		currentLat = first.lat;
+		currentLng = first.lng;
 	}
 
 	while (remaining.length > 0) {
@@ -128,12 +124,7 @@ export function sortSchoolsByDistance(
 		let nearestDist = Number.POSITIVE_INFINITY;
 
 		for (let i = 0; i < remaining.length; i++) {
-			const dist = haversineDistance(
-				currentLat,
-				currentLng,
-				remaining[i].lat!,
-				remaining[i].lng!,
-			);
+			const dist = haversineDistance(currentLat, currentLng, remaining[i].lat, remaining[i].lng);
 			if (dist < nearestDist) {
 				nearestDist = dist;
 				nearestIdx = i;
@@ -142,8 +133,8 @@ export function sortSchoolsByDistance(
 
 		const nearest = remaining.splice(nearestIdx, 1)[0];
 		sorted.push(nearest);
-		currentLat = nearest.lat!;
-		currentLng = nearest.lng!;
+		currentLat = nearest.lat;
+		currentLng = nearest.lng;
 	}
 
 	return [...sorted, ...ungeocoded];
@@ -152,9 +143,26 @@ export function sortSchoolsByDistance(
 export function assignToVehicles(
 	orderedGroups: SchoolGroup[],
 	vehicles: RouteGenerationInput["vehicles"],
-): { assigned: Map<string, { vehicle: RouteGenerationInput["vehicles"][0]; students: RoutableStudent[]; schoolGroups: SchoolGroup[] }>; unrouted: RoutableStudent[] } {
+): {
+	assigned: Map<
+		string,
+		{
+			vehicle: RouteGenerationInput["vehicles"][0];
+			students: RoutableStudent[];
+			schoolGroups: SchoolGroup[];
+		}
+	>;
+	unrouted: RoutableStudent[];
+} {
 	const activeVehicles = vehicles.filter((v) => v.isActive);
-	const assigned = new Map<string, { vehicle: RouteGenerationInput["vehicles"][0]; students: RoutableStudent[]; schoolGroups: SchoolGroup[] }>();
+	const assigned = new Map<
+		string,
+		{
+			vehicle: RouteGenerationInput["vehicles"][0];
+			students: RoutableStudent[];
+			schoolGroups: SchoolGroup[];
+		}
+	>();
 	const unrouted: RoutableStudent[] = [];
 
 	for (const v of activeVehicles) {
@@ -189,8 +197,23 @@ export function assignToVehicles(
 
 export function buildRoutePayloads(
 	date: string,
-	assigned: Map<string, { vehicle: RouteGenerationInput["vehicles"][0]; students: RoutableStudent[]; schoolGroups: SchoolGroup[] }>,
-	staffAssignments: Map<string, { driverId: string | null; driverName: string | null; helperId: string | null; helperName: string | null }>,
+	assigned: Map<
+		string,
+		{
+			vehicle: RouteGenerationInput["vehicles"][0];
+			students: RoutableStudent[];
+			schoolGroups: SchoolGroup[];
+		}
+	>,
+	staffAssignments: Map<
+		string,
+		{
+			driverId: string | null;
+			driverName: string | null;
+			helperId: string | null;
+			helperName: string | null;
+		}
+	>,
 ): VehicleRoute[] {
 	const routes: VehicleRoute[] = [];
 
@@ -255,8 +278,24 @@ export function buildRoutePayloads(
 export function assignStaffToVehicles(
 	vehicleIds: string[],
 	availableStaff: RouteGenerationInput["availableStaff"],
-): Map<string, { driverId: string | null; driverName: string | null; helperId: string | null; helperName: string | null }> {
-	const assignments = new Map<string, { driverId: string | null; driverName: string | null; helperId: string | null; helperName: string | null }>();
+): Map<
+	string,
+	{
+		driverId: string | null;
+		driverName: string | null;
+		helperId: string | null;
+		helperName: string | null;
+	}
+> {
+	const assignments = new Map<
+		string,
+		{
+			driverId: string | null;
+			driverName: string | null;
+			helperId: string | null;
+			helperName: string | null;
+		}
+	>();
 	const assignedStaffIds = new Set<string>();
 
 	const drivers = availableStaff.filter((s) => s.capabilities.includes("driver"));
@@ -295,7 +334,10 @@ export function assignStaffToVehicles(
 export function generateRoutes(input: RouteGenerationInput): RouteGenerationResult {
 	const routable = collectRoutableStudents(input);
 	const schoolGroups = groupBySchool(routable, input.schools);
-	const orderedGroups = sortSchoolsByDistance(schoolGroups, input.originLat, input.originLng);
+	const orderedGroups =
+		input.orderedSchoolIds && input.orderedSchoolIds.length > 0
+			? orderGroupsByExplicitSchoolOrder(schoolGroups, input.orderedSchoolIds)
+			: sortSchoolsByDistance(schoolGroups, input.originLat, input.originLng);
 	const { assigned, unrouted } = assignToVehicles(orderedGroups, input.vehicles);
 
 	const vehicleIds = Array.from(assigned.keys()).filter(
@@ -323,4 +365,17 @@ export function generateRoutes(input: RouteGenerationInput): RouteGenerationResu
 		unroutedStudentIds: unrouted.map((s) => s.id),
 		warnings,
 	};
+}
+
+function orderGroupsByExplicitSchoolOrder(
+	groups: SchoolGroup[],
+	orderedSchoolIds: string[],
+): SchoolGroup[] {
+	const order = new Map(orderedSchoolIds.map((schoolId, index) => [schoolId, index]));
+	return [...groups].sort((a, b) => {
+		const aIndex = order.get(a.schoolId) ?? Number.POSITIVE_INFINITY;
+		const bIndex = order.get(b.schoolId) ?? Number.POSITIVE_INFINITY;
+		if (aIndex !== bIndex) return aIndex - bIndex;
+		return a.schoolName.localeCompare(b.schoolName);
+	});
 }

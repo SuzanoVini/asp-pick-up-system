@@ -1,13 +1,12 @@
+import type { AttendanceResult } from "../../engine/types";
 import {
-	collectRoutableStudents,
-	groupBySchool,
-	assignToVehicles,
 	assignStaffToVehicles,
-	sortSchoolsByDistance,
+	assignToVehicles,
+	collectRoutableStudents,
 	generateRoutes,
+	groupBySchool,
 } from "../optimizer";
 import type { RouteGenerationInput } from "../types";
-import type { AttendanceResult } from "../../engine/types";
 
 function makeResult(studentId: string, status: string): AttendanceResult {
 	return {
@@ -34,17 +33,80 @@ function makeInput(overrides: Partial<RouteGenerationInput> = {}): RouteGenerati
 			makeResult("s7", "D"),
 		],
 		students: [
-			{ id: "s1", name: "Student One", schoolId: "sc1", dropOffOnly: false, dateOfBirth: "2020-01-15", dismissalTime: null },
-			{ id: "s2", name: "Student Two", schoolId: "sc1", dropOffOnly: false, dateOfBirth: "2015-06-20", dismissalTime: null },
-			{ id: "s3", name: "Student Three", schoolId: "sc1", dropOffOnly: false, dateOfBirth: null, dismissalTime: null },
-			{ id: "s4", name: "Student Four", schoolId: "sc2", dropOffOnly: false, dateOfBirth: null, dismissalTime: null },
-			{ id: "s5", name: "Student Five", schoolId: "sc2", dropOffOnly: false, dateOfBirth: null, dismissalTime: null },
-			{ id: "s6", name: "Student Six", schoolId: "sc2", dropOffOnly: false, dateOfBirth: null, dismissalTime: null },
-			{ id: "s7", name: "Student Seven", schoolId: "sc1", dropOffOnly: true, dateOfBirth: null, dismissalTime: null },
+			{
+				id: "s1",
+				name: "Student One",
+				schoolId: "sc1",
+				dropOffOnly: false,
+				dateOfBirth: "2020-01-15",
+				dismissalTime: null,
+			},
+			{
+				id: "s2",
+				name: "Student Two",
+				schoolId: "sc1",
+				dropOffOnly: false,
+				dateOfBirth: "2015-06-20",
+				dismissalTime: null,
+			},
+			{
+				id: "s3",
+				name: "Student Three",
+				schoolId: "sc1",
+				dropOffOnly: false,
+				dateOfBirth: null,
+				dismissalTime: null,
+			},
+			{
+				id: "s4",
+				name: "Student Four",
+				schoolId: "sc2",
+				dropOffOnly: false,
+				dateOfBirth: null,
+				dismissalTime: null,
+			},
+			{
+				id: "s5",
+				name: "Student Five",
+				schoolId: "sc2",
+				dropOffOnly: false,
+				dateOfBirth: null,
+				dismissalTime: null,
+			},
+			{
+				id: "s6",
+				name: "Student Six",
+				schoolId: "sc2",
+				dropOffOnly: false,
+				dateOfBirth: null,
+				dismissalTime: null,
+			},
+			{
+				id: "s7",
+				name: "Student Seven",
+				schoolId: "sc1",
+				dropOffOnly: true,
+				dateOfBirth: null,
+				dismissalTime: null,
+			},
 		],
 		schools: [
-			{ id: "sc1", name: "School A", address: "100 Elm St", standardDismissalTime: "15:00", lat: 49.26, lng: -123.13 },
-			{ id: "sc2", name: "School B", address: "200 Oak Ave", standardDismissalTime: "15:00", lat: 49.27, lng: -123.15 },
+			{
+				id: "sc1",
+				name: "School A",
+				address: "100 Elm St",
+				standardDismissalTime: "15:00",
+				lat: 49.26,
+				lng: -123.13,
+			},
+			{
+				id: "sc2",
+				name: "School B",
+				address: "200 Oak Ave",
+				standardDismissalTime: "15:00",
+				lat: 49.27,
+				lng: -123.15,
+			},
 		],
 		vehicles: [
 			{ id: "v1", name: "Van 1", kidsSeats: 6, boosterSeats: 2, isActive: true },
@@ -86,7 +148,14 @@ describe("collectRoutableStudents", () => {
 		const input = makeInput({
 			attendanceResults: [makeResult("s7", "P")],
 			students: [
-				{ id: "s7", name: "Drop Off Kid", schoolId: "sc1", dropOffOnly: true, dateOfBirth: null, dismissalTime: null },
+				{
+					id: "s7",
+					name: "Drop Off Kid",
+					schoolId: "sc1",
+					dropOffOnly: true,
+					dateOfBirth: null,
+					dismissalTime: null,
+				},
 			],
 		});
 		const result = collectRoutableStudents(input);
@@ -194,5 +263,11 @@ describe("generateRoutes", () => {
 				lastSchool = school;
 			}
 		}
+	});
+
+	it("uses an explicit school order when supplied", () => {
+		const result = generateRoutes(makeInput({ orderedSchoolIds: ["sc2", "sc1"] }));
+		const schoolOrder = result.routes[0].stops.map((s) => s.schoolId);
+		expect(schoolOrder[0]).toBe("sc2");
 	});
 });

@@ -1,27 +1,209 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/app/lib/supabase/server";
-import { generateRoutes } from "@/app/lib/routes/optimizer";
-import { materializeAttendanceForDate } from "@/app/lib/routes/materialize-attendance";
 import { writeRouteAuditEvent } from "@/app/lib/routes/audit";
-import * as routesDb from "@/app/lib/supabase/routes";
+import { materializeAttendanceForDate } from "@/app/lib/routes/materialize-attendance";
+import { generateRoutes } from "@/app/lib/routes/optimizer";
+import type { VehicleRoute } from "@/app/lib/routes/types";
+import { createDistanceService } from "@/app/lib/services/distance";
+import { buildCacheKey } from "@/app/lib/services/distance/cache";
+import * as distanceCacheDb from "@/app/lib/supabase/distance-cache";
 import * as routeStopsDb from "@/app/lib/supabase/route-stops";
+import * as routesDb from "@/app/lib/supabase/routes";
+import { createClient } from "@/app/lib/supabase/server";
 import * as staffScheduleDb from "@/app/lib/supabase/staff-schedule";
-import type { DayOfWeek } from "@/app/lib/engine/types";
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+interface SchoolCoordinates {
+	lat: number | null;
+	lng: number | null;
+}
+
+interface SchoolForRoutes extends SchoolCoordinates {
+	id: string;
+	name: string;
+	address: string | null;
+	standardDismissalTime: string;
+}
+
+function parseCoordinate(value: unknown): number | null {
+	if (typeof value === "number" && Number.isFinite(value)) return value;
+	if (typeof value === "string") {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : null;
+	}
+	return null;
+}
+
+async function getDistanceWithCache(
+	supabase: SupabaseClient,
+	from: { lat: number; lng: number },
+	to: { lat: number; lng: number },
+) {
+	const key = buildCacheKey("google_maps", from, to, "driving");
+	const cached = await distanceCacheDb.getCachedDistance(
+		supabase,
+		key.provider,
+		key.originLatLng,
+		key.destinationLatLng,
+		key.travelMode,
+	);
+
+	if (cached) {
+		return {
+			km: Number(cached.distance_km),
+			minutes: Number(cached.duration_min),
+		};
+	}
+
+	const result = await createDistanceService().distance(from, to);
+	if (!result) return null;
+
+	try {
+		await distanceCacheDb.setCachedDistance(supabase, {
+			provider: key.provider,
+			origin_lat_lng: key.originLatLng,
+			destination_lat_lng: key.destinationLatLng,
+			travel_mode: key.travelMode,
+			distance_km: result.km,
+			duration_min: result.minutes,
+		});
+	} catch {
+		// Cache writes are best-effort because RLS may reserve them for service-role flows.
+	}
+
+	return result;
+}
+
+async function getDistanceWithoutThrow(
+	supabase: SupabaseClient,
+	from: { lat: number; lng: number },
+	to: { lat: number; lng: number },
+) {
+	try {
+		return await getDistanceWithCache(supabase, from, to);
+	} catch {
+		return null;
+	}
+}
+
+async function buildDrivingSchoolOrder(
+	supabase: SupabaseClient,
+	schools: SchoolForRoutes[],
+	routableSchoolIds: Set<string>,
+	origin: { lat: number; lng: number } | null,
+) {
+	if (!process.env.GOOGLE_MAPS_API_KEY || routableSchoolIds.size <= 1) return undefined;
+
+	const routableSchools = schools.filter((s) => routableSchoolIds.has(s.id));
+	const remaining = routableSchools
+		.filter((s) => s.lat !== null && s.lng !== null)
+		.map((s) => ({ id: s.id, lat: s.lat as number, lng: s.lng as number }));
+	const ungeocoded = routableSchools
+		.filter((s) => s.lat === null || s.lng === null)
+		.map((s) => s.id);
+
+	if (remaining.length === 0) return undefined;
+
+	const ordered: string[] = [];
+	let currentPoint = origin;
+
+	if (!currentPoint) {
+		const first = remaining.shift();
+		if (!first) return [...ordered, ...ungeocoded];
+		ordered.push(first.id);
+		currentPoint = { lat: first.lat, lng: first.lng };
+	}
+
+	while (remaining.length > 0) {
+		let nearestIndex = 0;
+		let nearestDistance = Number.POSITIVE_INFINITY;
+
+		for (let i = 0; i < remaining.length; i++) {
+			const candidate = remaining[i];
+			const distance = await getDistanceWithoutThrow(supabase, currentPoint, {
+				lat: candidate.lat,
+				lng: candidate.lng,
+			});
+			if (distance && distance.km < nearestDistance) {
+				nearestDistance = distance.km;
+				nearestIndex = i;
+			}
+		}
+
+		const nearest = remaining.splice(nearestIndex, 1)[0];
+		ordered.push(nearest.id);
+		currentPoint = { lat: nearest.lat, lng: nearest.lng };
+	}
+
+	return [...ordered, ...ungeocoded];
+}
+
+async function enrichRouteDistances(
+	supabase: SupabaseClient,
+	routes: VehicleRoute[],
+	schoolCoordinates: Map<string, SchoolCoordinates>,
+	origin: { lat: number; lng: number } | null,
+) {
+	if (!process.env.GOOGLE_MAPS_API_KEY) return;
+
+	for (const route of routes) {
+		let previousPoint = origin;
+		let totalDistanceKm = 0;
+		const seenSchools = new Set<string>();
+
+		for (const stop of route.stops) {
+			if (seenSchools.has(stop.schoolId)) {
+				stop.distanceFromPrevKm = null;
+				stop.durationFromPrevMin = null;
+				continue;
+			}
+
+			seenSchools.add(stop.schoolId);
+			const coords = schoolCoordinates.get(stop.schoolId);
+			const currentPoint =
+				coords && coords.lat !== null && coords.lng !== null
+					? { lat: coords.lat, lng: coords.lng }
+					: null;
+
+			if (!currentPoint) {
+				stop.distanceFromPrevKm = null;
+				stop.durationFromPrevMin = null;
+				continue;
+			}
+
+			if (previousPoint) {
+				try {
+					const distance = await getDistanceWithCache(supabase, previousPoint, currentPoint);
+					if (distance) {
+						stop.distanceFromPrevKm = distance.km;
+						stop.durationFromPrevMin = distance.minutes;
+						totalDistanceKm += distance.km;
+					}
+				} catch {
+					stop.distanceFromPrevKm = null;
+					stop.durationFromPrevMin = null;
+				}
+			}
+
+			previousPoint = currentPoint;
+		}
+
+		route.totalDistanceKm = totalDistanceKm > 0 ? Math.round(totalDistanceKm * 100) / 100 : null;
+	}
+}
 
 export async function generateRoutesForDate(date: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 	if (!user) throw new Error("Not authenticated");
 
 	const results = await materializeAttendanceForDate(supabase, date);
 
-	const [
-		{ data: studentsRaw },
-		{ data: schoolsRaw },
-		{ data: vehiclesRaw },
-	] = await Promise.all([
+	const [{ data: studentsRaw }, { data: schoolsRaw }, { data: vehiclesRaw }] = await Promise.all([
 		supabase.from("asp_students").select("*").eq("status", "active"),
 		supabase.from("asp_schools").select("*"),
 		supabase.from("asp_vehicles").select("*").eq("is_active", true),
@@ -31,10 +213,11 @@ export async function generateRoutesForDate(date: string) {
 	const availableStaff = (availability ?? []).map((a) => ({
 		id: a.staff_id,
 		name: (a as Record<string, unknown>).asp_staff
-			? ((a as Record<string, unknown>).asp_staff as Record<string, unknown>).name as string
+			? (((a as Record<string, unknown>).asp_staff as Record<string, unknown>).name as string)
 			: "",
 		capabilities: (a as Record<string, unknown>).asp_staff
-			? ((a as Record<string, unknown>).asp_staff as Record<string, unknown>).capabilities as string[]
+			? (((a as Record<string, unknown>).asp_staff as Record<string, unknown>)
+					.capabilities as string[])
 			: [],
 	}));
 
@@ -44,28 +227,49 @@ export async function generateRoutesForDate(date: string) {
 		.in("key", ["route_origin_lat", "route_origin_lng"]);
 
 	const settingsMap = new Map((settingsRows ?? []).map((r) => [r.key, r.value]));
-	const originLat = settingsMap.get("route_origin_lat") as number | null;
-	const originLng = settingsMap.get("route_origin_lng") as number | null;
+	const originLat = parseCoordinate(settingsMap.get("route_origin_lat"));
+	const originLng = parseCoordinate(settingsMap.get("route_origin_lng"));
+	const origin =
+		originLat !== null && originLng !== null ? { lat: originLat, lng: originLng } : null;
+
+	const schools = (schoolsRaw ?? []).map((s) => ({
+		id: s.id,
+		name: s.name,
+		address: s.address ?? null,
+		standardDismissalTime: s.standard_dismissal_time ?? "15:00",
+		lat: s.lat ?? null,
+		lng: s.lng ?? null,
+	}));
+	const activeStudents = (studentsRaw ?? []).map((s) => ({
+		id: s.id,
+		name: s.name,
+		schoolId: s.school_id ?? "",
+		dropOffOnly: s.drop_off_only ?? false,
+		dateOfBirth: s.date_of_birth ?? null,
+		dismissalTime: s.dismissal_time ?? null,
+	}));
+	const routableStatuses = new Set(["P", "E", "ED"]);
+	const studentMap = new Map(activeStudents.map((s) => [s.id, s]));
+	type ActiveStudent = (typeof activeStudents)[number];
+	const routableSchoolIds = new Set(
+		results
+			.filter((r) => routableStatuses.has(r.status))
+			.map((r) => studentMap.get(r.studentId))
+			.filter((student): student is ActiveStudent => student !== undefined && !student.dropOffOnly)
+			.map((student) => student.schoolId),
+	);
+	const orderedSchoolIds = await buildDrivingSchoolOrder(
+		supabase,
+		schools,
+		routableSchoolIds,
+		origin,
+	);
 
 	const genResult = generateRoutes({
 		date,
 		attendanceResults: results,
-		students: (studentsRaw ?? []).map((s) => ({
-			id: s.id,
-			name: s.name,
-			schoolId: s.school_id ?? "",
-			dropOffOnly: s.drop_off_only ?? false,
-			dateOfBirth: s.date_of_birth ?? null,
-			dismissalTime: s.dismissal_time ?? null,
-		})),
-		schools: (schoolsRaw ?? []).map((s) => ({
-			id: s.id,
-			name: s.name,
-			address: s.address ?? null,
-			standardDismissalTime: s.standard_dismissal_time ?? "15:00",
-			lat: s.lat ?? null,
-			lng: s.lng ?? null,
-		})),
+		students: activeStudents,
+		schools,
 		vehicles: (vehiclesRaw ?? []).map((v) => ({
 			id: v.id,
 			name: v.name,
@@ -76,7 +280,11 @@ export async function generateRoutesForDate(date: string) {
 		availableStaff,
 		originLat,
 		originLng,
+		orderedSchoolIds,
 	});
+
+	const schoolCoordinates = new Map(schools.map((s) => [s.id, { lat: s.lat, lng: s.lng }]));
+	await enrichRouteDistances(supabase, genResult.routes, schoolCoordinates, origin);
 
 	for (const route of genResult.routes) {
 		const dbRoute = await routesDb.createRoute(supabase, {
@@ -123,7 +331,9 @@ export async function generateRoutesForDate(date: string) {
 
 export async function regenerateRoutesForDate(date: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 	if (!user) throw new Error("Not authenticated");
 
 	const existing = await routesDb.getRoutesForDate(supabase, date);
@@ -138,7 +348,9 @@ export async function regenerateRoutesForDate(date: string) {
 
 export async function markStaleRouteReviewed(routeId: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 	if (!user) throw new Error("Not authenticated");
 
 	await routesDb.updateRouteStatus(supabase, routeId, "active");
@@ -155,7 +367,9 @@ export async function markStaleRouteReviewed(routeId: string) {
 
 export async function reopenCompletedRoute(routeId: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 	if (!user) throw new Error("Not authenticated");
 
 	await routesDb.updateRouteStatus(supabase, routeId, "active");
@@ -172,7 +386,9 @@ export async function reopenCompletedRoute(routeId: string) {
 
 export async function deleteDraftRoute(routeId: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 	if (!user) throw new Error("Not authenticated");
 
 	const route = await routesDb.getRouteById(supabase, routeId);

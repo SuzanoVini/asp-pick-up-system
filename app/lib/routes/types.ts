@@ -35,6 +35,7 @@ export interface RouteGenerationInput {
 	}>;
 	originLat: number | null;
 	originLng: number | null;
+	orderedSchoolIds?: string[];
 }
 
 export interface RouteStop {

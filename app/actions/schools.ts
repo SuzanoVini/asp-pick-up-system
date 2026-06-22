@@ -2,8 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { createSchoolSchema, updateSchoolSchema } from "@/app/lib/schemas/school";
+import { createDistanceService } from "@/app/lib/services/distance";
 import * as schoolsDb from "@/app/lib/supabase/schools";
 import { createClient } from "@/app/lib/supabase/server";
+
+async function withGeocodedAddress(input: Record<string, unknown>) {
+	if (!Object.hasOwn(input, "address")) return input;
+
+	const address = typeof input.address === "string" ? input.address.trim() : null;
+	if (!address) {
+		return { ...input, address: null, lat: null, lng: null };
+	}
+
+	if (!process.env.GOOGLE_MAPS_API_KEY) {
+		return { ...input, address };
+	}
+
+	const service = createDistanceService();
+	const location = await service.geocode(address);
+	if (!location) {
+		throw new Error("Google Maps could not find coordinates for that school address.");
+	}
+
+	return { ...input, address, lat: location.lat, lng: location.lng };
+}
 
 export async function createSchoolAction(formData: Record<string, unknown>) {
 	const parsed = createSchoolSchema.safeParse(formData);
@@ -12,7 +34,18 @@ export async function createSchoolAction(formData: Record<string, unknown>) {
 	}
 
 	const supabase = await createClient();
-	const data = await schoolsDb.createSchool(supabase, parsed.data);
+	let input: Record<string, unknown>;
+	try {
+		input = await withGeocodedAddress(parsed.data);
+	} catch (error) {
+		return {
+			error: {
+				address: [error instanceof Error ? error.message : "Could not geocode school address."],
+			},
+		};
+	}
+
+	const data = await schoolsDb.createSchool(supabase, input);
 
 	revalidatePath("/schools");
 	return { data };
@@ -25,7 +58,18 @@ export async function updateSchoolAction(id: string, formData: Record<string, un
 	}
 
 	const supabase = await createClient();
-	const data = await schoolsDb.updateSchool(supabase, id, parsed.data);
+	let input: Record<string, unknown>;
+	try {
+		input = await withGeocodedAddress(parsed.data);
+	} catch (error) {
+		return {
+			error: {
+				address: [error instanceof Error ? error.message : "Could not geocode school address."],
+			},
+		};
+	}
+
+	const data = await schoolsDb.updateSchool(supabase, id, input);
 
 	revalidatePath("/schools");
 	return { data };

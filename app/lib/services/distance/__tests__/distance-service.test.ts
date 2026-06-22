@@ -1,5 +1,6 @@
-import { NullDistanceService } from "../null-service";
 import { buildCacheKey } from "../cache";
+import { GoogleDistanceService } from "../google-service";
+import { NullDistanceService } from "../null-service";
 import type { LatLng } from "../types";
 
 describe("NullDistanceService", () => {
@@ -63,6 +64,75 @@ describe("buildCacheKey", () => {
 		const preciseFrom: LatLng = { lat: 49.263829999, lng: -123.138280001 };
 		const key = buildCacheKey("google_maps", preciseFrom, to, "driving");
 		expect(key.originLatLng).toBe("49.26383,-123.13828");
+	});
+});
+
+describe("GoogleDistanceService", () => {
+	const originalFetch = global.fetch;
+
+	afterEach(() => {
+		global.fetch = originalFetch;
+		jest.restoreAllMocks();
+	});
+
+	it("geocodes an address from the Google response", async () => {
+		global.fetch = jest.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({
+				status: "OK",
+				results: [{ geometry: { location: { lat: 49.26383, lng: -123.13828 } } }],
+			}),
+		}) as jest.Mock;
+
+		const service = new GoogleDistanceService("test-key");
+		const result = await service.geocode("100 Test Street");
+
+		expect(result).toEqual({ lat: 49.26383, lng: -123.13828 });
+		expect(global.fetch).toHaveBeenCalledWith(
+			expect.stringContaining("https://maps.googleapis.com/maps/api/geocode/json?"),
+		);
+		expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain("address=100+Test+Street");
+	});
+
+	it("returns null when Google geocoding has no results", async () => {
+		global.fetch = jest.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({ status: "ZERO_RESULTS", results: [] }),
+		}) as jest.Mock;
+
+		const service = new GoogleDistanceService("test-key");
+		await expect(service.geocode("unknown")).resolves.toBeNull();
+	});
+
+	it("maps distance matrix meters and seconds to km and minutes", async () => {
+		global.fetch = jest.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({
+				status: "OK",
+				rows: [
+					{
+						elements: [
+							{
+								status: "OK",
+								distance: { value: 12345 },
+								duration: { value: 960 },
+							},
+						],
+					},
+				],
+			}),
+		}) as jest.Mock;
+
+		const service = new GoogleDistanceService("test-key");
+		const result = await service.distance(
+			{ lat: 49.26383, lng: -123.13828 },
+			{ lat: 49.27191, lng: -123.15012 },
+		);
+
+		expect(result).toEqual({ km: 12.35, minutes: 16 });
+		expect(global.fetch).toHaveBeenCalledWith(
+			expect.stringContaining("https://maps.googleapis.com/maps/api/distancematrix/json?"),
+		);
 	});
 });
 

@@ -27,7 +27,7 @@ Built as a standalone operational tool that can later integrate into a larger ad
 - Node.js 18 or later
 - npm
 - A Supabase project (free tier works for development)
-- Google Maps API key (optional -- distance features are disabled if not set)
+- Google Maps API key (optional -- enables automatic school geocoding and driving-distance route ordering)
 
 ## Setup
 
@@ -73,7 +73,7 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public API key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-side only) |
-| `GOOGLE_MAPS_API_KEY` | No | Google Maps API key for distance calculations |
+| `GOOGLE_MAPS_API_KEY` | No | Google Maps API key for school address geocoding, driving-distance route ordering, route leg duration, and route total distance |
 | `NEXT_PUBLIC_APP_NAME` | No | Application display name (default: ASP Manager) |
 | `NEXT_PUBLIC_TIMEZONE` | No | Operational timezone (default: America/Vancouver) |
 
@@ -135,7 +135,7 @@ supabase/
 
 - **Kids and Schools View** -- Daily operational view grouping students by school, with sections for present, drop-off only, absent, and not-scheduled students.
 
-- **Route Planner** -- Per-date route generation with distance-based auto-optimization, drag-and-drop editing, capacity validation, and readiness checks before export.
+- **Route Planner** -- Per-date route generation with Google Maps-powered school geocoding and driving-distance ordering when configured, drag-and-drop editing, capacity validation, and readiness checks before export.
 
 - **PDF Export** -- Per-vehicle route PDFs with driver, student, school, address, dismissal time, and booster indicators.
 
