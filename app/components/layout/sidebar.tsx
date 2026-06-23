@@ -15,6 +15,7 @@ import {
 	Route,
 	School,
 	ScrollText,
+	Settings,
 	UserCheck,
 	Users,
 	X,
@@ -40,6 +41,7 @@ const navItems = [
 	{ href: "/waitlist", label: "Waitlist", icon: ListOrdered },
 	{ href: "/former-students", label: "Former Students", icon: Archive },
 	{ href: "/audit", label: "Audit Log", icon: ScrollText },
+	{ href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {

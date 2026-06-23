@@ -27,6 +27,7 @@ docs/private-context/
 asp-pickup-integration-context.md
 asp-pickup-bootstrap-prompt.md
 HANDOFF.md
+README.portfolio-draft.md
 
 # Superpowers brainstorm sessions
 .superpowers/
@@ -46,3 +47,5 @@ coverage/
 
 # Supabase local
 supabase/.temp/
+
+.vercel
