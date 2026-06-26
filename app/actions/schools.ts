@@ -77,7 +77,19 @@ export async function updateSchoolAction(id: string, formData: Record<string, un
 
 export async function deleteSchoolAction(id: string) {
 	const supabase = await createClient();
-	await schoolsDb.deleteSchool(supabase, id);
+	try {
+		await schoolsDb.deleteSchool(supabase, id);
+	} catch (error) {
+		if (typeof error === "object" && error !== null && "code" in error && error.code === "23503") {
+			return {
+				error:
+					"This school is linked to students, calendar rules, or route history. Move or remove those records first, or mark the school inactive.",
+			};
+		}
+
+		throw error;
+	}
 
 	revalidatePath("/schools");
+	return { success: true };
 }

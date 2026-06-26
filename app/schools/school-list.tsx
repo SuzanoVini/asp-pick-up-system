@@ -22,13 +22,22 @@ export function SchoolList({ schools }: { schools: School[] }) {
 	const [showForm, setShowForm] = useState(false);
 	const [editing, setEditing] = useState<School | null>(null);
 	const [deleting, setDeleting] = useState<School | null>(null);
+	const [deleteError, setDeleteError] = useState<string | null>(null);
 	const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
 
 	const filtered = filter === "all" ? schools : schools.filter((s) => s.status === filter);
 
 	const handleDelete = async () => {
 		if (!deleting) return;
-		await deleteSchoolAction(deleting.id);
+		setDeleteError(null);
+		const result = await deleteSchoolAction(deleting.id);
+
+		if (result?.error) {
+			setDeleteError(result.error);
+			setDeleting(null);
+			return;
+		}
+
 		setDeleting(null);
 	};
 
@@ -72,6 +81,7 @@ export function SchoolList({ schools }: { schools: School[] }) {
 						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
+							setDeleteError(null);
 							setDeleting(r);
 						}}
 						className="rounded p-1 text-gray-400 hover:text-red-600"
@@ -133,6 +143,11 @@ export function SchoolList({ schools }: { schools: School[] }) {
 				searchable
 				searchKeys={["name", "address"]}
 			/>
+			{deleteError && (
+				<div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+					{deleteError}
+				</div>
+			)}
 			<ConfirmDialog
 				open={!!deleting}
 				title="Delete School"

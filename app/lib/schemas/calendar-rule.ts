@@ -15,13 +15,25 @@ export const ruleTypeEnum = z.enum([
 export const targetTypeEnum = z.enum(["all", "school", "student"]);
 
 const dayOfWeek = z.enum(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function optionalUuid(message: string) {
+	return z.preprocess(
+		(value) => (value === "" ? null : value),
+		z
+			.string()
+			.refine((value) => uuidPattern.test(value), message)
+			.nullable()
+			.optional(),
+	);
+}
 
 export const createCalendarRuleSchema = z
 	.object({
 		rule_type: ruleTypeEnum,
 		target_type: targetTypeEnum,
-		target_student_id: z.string().uuid().nullable().optional(),
-		target_school_id: z.string().uuid().nullable().optional(),
+		target_student_id: optionalUuid("Select a student"),
+		target_school_id: optionalUuid("Select a school"),
 		target_name: z.string().trim().max(500).nullable().optional(),
 		start_date: z.coerce.date(),
 		end_date: z.coerce.date(),
@@ -38,11 +50,17 @@ export const createCalendarRuleSchema = z
 	})
 	.refine(
 		(data) => {
-			if (data.target_type === "school") return !!data.target_school_id;
-			if (data.target_type === "student") return !!data.target_student_id;
-			return true;
+			if (data.target_type !== "school") return true;
+			return !!data.target_school_id;
 		},
-		{ message: "Target ID required for school or student rules", path: ["target_type"] },
+		{ message: "Select a school", path: ["target_school_id"] },
+	)
+	.refine(
+		(data) => {
+			if (data.target_type !== "student") return true;
+			return !!data.target_student_id;
+		},
+		{ message: "Select a student", path: ["target_student_id"] },
 	)
 	.refine(
 		(data) => {
@@ -63,8 +81,8 @@ export const updateCalendarRuleSchema = z
 	.object({
 		rule_type: ruleTypeEnum.optional(),
 		target_type: targetTypeEnum.optional(),
-		target_student_id: z.string().uuid().nullable().optional(),
-		target_school_id: z.string().uuid().nullable().optional(),
+		target_student_id: optionalUuid("Select a student"),
+		target_school_id: optionalUuid("Select a school"),
 		target_name: z.string().trim().max(500).nullable().optional(),
 		start_date: z.coerce.date().optional(),
 		end_date: z.coerce.date().optional(),

@@ -12,11 +12,18 @@ export async function createGuardianAction(formData: Record<string, unknown>) {
 	}
 
 	const supabase = await createClient();
-	const data = await guardiansDb.createGuardian(supabase, parsed.data);
+	try {
+		const data = await guardiansDb.createGuardian(supabase, parsed.data);
+		revalidatePath("/guardians");
+		revalidatePath(`/students/${parsed.data.student_id}`);
+		return { data };
+	} catch (error) {
+		if (typeof error === "object" && error !== null && "code" in error && error.code === "23503") {
+			return { error: { student_id: ["Select an existing student"] } };
+		}
 
-	revalidatePath("/guardians");
-	revalidatePath(`/students/${parsed.data.student_id}`);
-	return { data };
+		return { error: { _form: ["Could not create guardian. Please try again."] } };
+	}
 }
 
 export async function updateGuardianAction(id: string, formData: Record<string, unknown>) {
@@ -26,10 +33,13 @@ export async function updateGuardianAction(id: string, formData: Record<string, 
 	}
 
 	const supabase = await createClient();
-	const data = await guardiansDb.updateGuardian(supabase, id, parsed.data);
-
-	revalidatePath("/guardians");
-	return { data };
+	try {
+		const data = await guardiansDb.updateGuardian(supabase, id, parsed.data);
+		revalidatePath("/guardians");
+		return { data };
+	} catch {
+		return { error: { _form: ["Could not update guardian. Please try again."] } };
+	}
 }
 
 export async function deleteGuardianAction(id: string) {

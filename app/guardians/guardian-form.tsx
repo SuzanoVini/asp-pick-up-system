@@ -60,6 +60,11 @@ export function GuardianForm({ guardian, students, onClose }: GuardianFormProps)
 	return (
 		<div className="rounded-lg border border-gray-200 bg-white p-6">
 			<h3 className="mb-4 text-lg font-semibold">{isEdit ? "Edit Guardian" : "Add Guardian"}</h3>
+			{errors._form?.[0] && (
+				<div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+					{errors._form[0]}
+				</div>
+			)}
 			<form onSubmit={handleSubmit}>
 				{!isEdit && (
 					<FormField label="Student" required error={errors.student_id}>

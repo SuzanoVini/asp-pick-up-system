@@ -158,6 +158,11 @@ export function RuleForm({ rule, schools, students, onClose }: RuleFormProps) {
 					Cancel
 				</button>
 			</div>
+			{errors._form?.[0] && (
+				<div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+					{errors._form[0]}
+				</div>
+			)}
 
 			<FormField label="Rule Type" error={errors.rule_type?.[0]}>
 				<select

@@ -15,11 +15,14 @@ export async function createCalendarRuleAction(formData: Record<string, unknown>
 	}
 
 	const supabase = await createClient();
-	const data = await rulesDb.createCalendarRule(supabase, parsed.data);
-
-	revalidatePath("/calendar-rules");
-	revalidatePath("/attendance");
-	return { data };
+	try {
+		const data = await rulesDb.createCalendarRule(supabase, parsed.data);
+		revalidatePath("/calendar-rules");
+		revalidatePath("/attendance");
+		return { data };
+	} catch {
+		return { error: { _form: ["Could not create calendar rule. Please try again."] } };
+	}
 }
 
 export async function updateCalendarRuleAction(id: string, formData: Record<string, unknown>) {
@@ -29,11 +32,14 @@ export async function updateCalendarRuleAction(id: string, formData: Record<stri
 	}
 
 	const supabase = await createClient();
-	const data = await rulesDb.updateCalendarRule(supabase, id, parsed.data);
-
-	revalidatePath("/calendar-rules");
-	revalidatePath("/attendance");
-	return { data };
+	try {
+		const data = await rulesDb.updateCalendarRule(supabase, id, parsed.data);
+		revalidatePath("/calendar-rules");
+		revalidatePath("/attendance");
+		return { data };
+	} catch {
+		return { error: { _form: ["Could not update calendar rule. Please try again."] } };
+	}
 }
 
 export async function toggleRuleActiveAction(id: string, isActive: boolean) {
