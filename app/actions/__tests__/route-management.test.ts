@@ -1,7 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { saveManualOverrideAction } from "../attendance";
-import { createOrRefreshRoutePlan } from "../route-management";
+import {
+	addRouteTable,
+	assignSchoolGroup,
+	assignStudent,
+	createOrRefreshRoutePlan,
+	moveStudentStop,
+	removeRouteTable,
+	removeStudentStop,
+	reorderRouteStops,
+	setRouteStaff,
+	setRouteVehicle,
+	updateStopResponsibleStaff,
+} from "../route-management";
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("../../lib/routes/materialize-attendance", () => ({
@@ -12,11 +24,37 @@ jest.mock("../../lib/security/authorization", () => ({
 	requireOwner: jest.fn(),
 }));
 jest.mock("../../lib/supabase/route-plans", () => ({
+	getPlanById: jest.fn(),
 	getPlanForDate: jest.fn(),
 	replacePlanSnapshot: jest.fn(),
 }));
-jest.mock("../../lib/supabase/routes", () => ({ getRoutesForPlan: jest.fn() }));
+jest.mock("../../lib/supabase/route-plan-students", () => ({ getPlanStudents: jest.fn() }));
+jest.mock("../../lib/supabase/route-stops", () => ({
+	assignRouteSchoolGroup: jest.fn(),
+	assignRouteStudent: jest.fn(),
+	getStopById: jest.fn(),
+	getStopsForPlan: jest.fn(),
+	getStopsForRoute: jest.fn(),
+	moveRouteStop: jest.fn(),
+	removeRouteStop: jest.fn(),
+	reorderRouteStops: jest.fn(),
+	setRouteStopResponsibleStaff: jest.fn(),
+}));
+jest.mock("../../lib/supabase/routes", () => ({
+	createRouteLane: jest.fn(),
+	deleteRouteLane: jest.fn(),
+	getRoutesForPlan: jest.fn(),
+	getRouteWithPlan: jest.fn(),
+	setRouteVehicle: jest.fn(),
+}));
+jest.mock("../../lib/supabase/staff", () => ({ getStaffById: jest.fn() }));
+jest.mock("../../lib/supabase/staff-schedule", () => ({
+	getAvailabilityForDate: jest.fn(),
+	removeAssignmentForVehicleDateRole: jest.fn(),
+	upsertAssignmentForVehicleDate: jest.fn(),
+}));
 jest.mock("../../lib/supabase/server", () => ({ createClient: jest.fn() }));
+jest.mock("../../lib/supabase/vehicles", () => ({ getVehicleById: jest.fn() }));
 
 const { materializeAttendanceForDate } = jest.requireMock(
 	"../../lib/routes/materialize-attendance",
@@ -24,14 +62,49 @@ const { materializeAttendanceForDate } = jest.requireMock(
 const { getAuthorizedUser, requireOwner } = jest.requireMock(
 	"../../lib/security/authorization",
 ) as { getAuthorizedUser: jest.Mock; requireOwner: jest.Mock };
-const { getPlanForDate, replacePlanSnapshot } = jest.requireMock(
+const { getPlanById, getPlanForDate, replacePlanSnapshot } = jest.requireMock(
 	"../../lib/supabase/route-plans",
-) as { getPlanForDate: jest.Mock; replacePlanSnapshot: jest.Mock };
-const { getRoutesForPlan } = jest.requireMock("../../lib/supabase/routes") as {
-	getRoutesForPlan: jest.Mock;
+) as { getPlanById: jest.Mock; getPlanForDate: jest.Mock; replacePlanSnapshot: jest.Mock };
+const { getPlanStudents } = jest.requireMock("../../lib/supabase/route-plan-students") as {
+	getPlanStudents: jest.Mock;
 };
+const {
+	assignRouteSchoolGroup,
+	assignRouteStudent,
+	getStopById,
+	getStopsForPlan,
+	getStopsForRoute,
+	moveRouteStop,
+	removeRouteStop,
+	reorderRouteStops: reorderRouteStopsRpc,
+	setRouteStopResponsibleStaff,
+} = jest.requireMock("../../lib/supabase/route-stops") as Record<string, jest.Mock>;
+const {
+	createRouteLane,
+	deleteRouteLane,
+	getRoutesForPlan,
+	getRouteWithPlan,
+	setRouteVehicle: setRouteVehicleRpc,
+} = jest.requireMock("../../lib/supabase/routes") as {
+	createRouteLane: jest.Mock;
+	deleteRouteLane: jest.Mock;
+	getRoutesForPlan: jest.Mock;
+	getRouteWithPlan: jest.Mock;
+	setRouteVehicle: jest.Mock;
+};
+const { getStaffById } = jest.requireMock("../../lib/supabase/staff") as {
+	getStaffById: jest.Mock;
+};
+const {
+	getAvailabilityForDate,
+	removeAssignmentForVehicleDateRole,
+	upsertAssignmentForVehicleDate,
+} = jest.requireMock("../../lib/supabase/staff-schedule") as Record<string, jest.Mock>;
 const { createClient } = jest.requireMock("../../lib/supabase/server") as {
 	createClient: jest.Mock;
+};
+const { getVehicleById } = jest.requireMock("../../lib/supabase/vehicles") as {
+	getVehicleById: jest.Mock;
 };
 
 type DbResponse = { data: unknown; error: Error | null };
@@ -383,5 +456,254 @@ describe("attendance synchronization RPCs", () => {
 				status: "A",
 			}),
 		).rejects.toBe(rpcError);
+	});
+});
+
+describe("guarded manual route editing", () => {
+	const planId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+	const routeId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+	const targetRouteId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+	const stopId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+	const studentId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+	const schoolId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+	const vehicleId = "11111111-1111-4111-8111-111111111111";
+	const staffId = "22222222-2222-4222-8222-222222222222";
+	const date = "2026-07-06";
+	const client = {} as SupabaseClient;
+	const editableRoute = {
+		id: routeId,
+		plan_id: planId,
+		date,
+		status: "draft",
+		vehicle_id: vehicleId,
+		asp_route_plans: { id: planId, status: "draft" },
+	};
+	const routableStudent = {
+		student_id: studentId,
+		plan_id: planId,
+		school_id: schoolId,
+		attendance_status: "P",
+		drop_off_only: false,
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		jest.mocked(createClient).mockResolvedValue(client as never);
+		jest.mocked(getAuthorizedUser).mockResolvedValue({ id: "owner-1", role: "owner" });
+		jest.mocked(requireOwner).mockImplementation(() => undefined);
+		jest.mocked(getRouteWithPlan).mockResolvedValue(editableRoute);
+		jest.mocked(getPlanById).mockResolvedValue({ id: planId, plan_date: date, status: "draft" });
+		jest.mocked(getStopById).mockResolvedValue({ id: stopId, route_id: routeId });
+		jest.mocked(getStopsForRoute).mockResolvedValue([]);
+		jest.mocked(getStopsForPlan).mockResolvedValue([]);
+		jest.mocked(getPlanStudents).mockResolvedValue([routableStudent]);
+		jest.mocked(getVehicleById).mockResolvedValue({ id: vehicleId, is_active: true });
+		jest.mocked(getStaffById).mockResolvedValue({
+			id: staffId,
+			is_active: true,
+			capabilities: ["driver", "helper"],
+		});
+		jest.mocked(getAvailabilityForDate).mockResolvedValue([{ staff_id: staffId }]);
+	});
+
+	it("adds a lane only to an owner draft plan", async () => {
+		jest.mocked(createRouteLane).mockResolvedValue({ id: routeId, date });
+
+		await expect(addRouteTable({ planId })).resolves.toMatchObject({ id: routeId });
+
+		expect(requireOwner).toHaveBeenCalledWith({ id: "owner-1", role: "owner" });
+		expect(createRouteLane).toHaveBeenCalledWith(client, planId);
+		expect(revalidatePath).toHaveBeenCalledWith("/route-management");
+		expect(revalidatePath).toHaveBeenCalledWith(`/route-management?date=${date}`);
+	});
+
+	it.each([
+		[{ ...editableRoute, asp_route_plans: { id: planId, status: "finalized" } }, "finalized"],
+		[{ ...editableRoute, status: "completed" }, "completed"],
+	])("rejects %s routes before mutation", async (route, _label) => {
+		jest.mocked(getRouteWithPlan).mockResolvedValue(route);
+
+		await expect(setRouteVehicle({ routeId, vehicleId: null })).rejects.toThrow();
+		expect(setRouteVehicleRpc).not.toHaveBeenCalled();
+	});
+
+	it("accepts an array-shaped draft plan relation in the shared editable guard", async () => {
+		jest.mocked(getRouteWithPlan).mockResolvedValue({
+			...editableRoute,
+			asp_route_plans: [{ id: planId, status: "draft" }],
+		});
+
+		await setRouteVehicle({ routeId, vehicleId: null });
+		expect(setRouteVehicleRpc).toHaveBeenCalledWith(client, routeId, null);
+	});
+
+	it("requires confirmation before deleting a non-empty route", async () => {
+		jest.mocked(getStopsForRoute).mockResolvedValue([{ id: stopId }]);
+
+		await expect(removeRouteTable({ routeId })).rejects.toThrow("confirmation");
+		expect(deleteRouteLane).not.toHaveBeenCalled();
+
+		await removeRouteTable({ routeId, confirmNonEmpty: true });
+		expect(deleteRouteLane).toHaveBeenCalledWith(client, routeId, true);
+	});
+
+	it("validates active vehicles while allowing vehicle clearing", async () => {
+		jest.mocked(getVehicleById).mockResolvedValueOnce({ id: vehicleId, is_active: false });
+		await expect(setRouteVehicle({ routeId, vehicleId })).rejects.toThrow("active");
+		expect(setRouteVehicleRpc).not.toHaveBeenCalled();
+
+		await setRouteVehicle({ routeId, vehicleId: null });
+		expect(setRouteVehicleRpc).toHaveBeenCalledWith(client, routeId, null);
+	});
+
+	it.each([
+		[{ is_active: false, capabilities: ["driver"] }, [{ staff_id: staffId }], "active"],
+		[{ is_active: true, capabilities: ["helper"] }, [{ staff_id: staffId }], "capable"],
+		[{ is_active: true, capabilities: ["driver"] }, [], "available"],
+	])("rejects invalid staff selections", async (staff, availability, message) => {
+		jest.mocked(getStaffById).mockResolvedValue({ id: staffId, ...staff });
+		jest.mocked(getAvailabilityForDate).mockResolvedValue(availability);
+
+		await expect(setRouteStaff({ routeId, role: "driver", staffId })).rejects.toThrow(message);
+		expect(upsertAssignmentForVehicleDate).not.toHaveBeenCalled();
+	});
+
+	it("requires a vehicle and supports clearing a staff role", async () => {
+		jest.mocked(getRouteWithPlan).mockResolvedValueOnce({ ...editableRoute, vehicle_id: null });
+		await expect(setRouteStaff({ routeId, role: "driver", staffId: null })).rejects.toThrow(
+			"vehicle",
+		);
+
+		await setRouteStaff({ routeId, role: "helper", staffId: null });
+		expect(removeAssignmentForVehicleDateRole).toHaveBeenCalledWith(
+			client,
+			date,
+			vehicleId,
+			"helper",
+		);
+	});
+
+	it.each([
+		[{ ...routableStudent, attendance_status: "A" }, [], "routable"],
+		[{ ...routableStudent, school_id: null }, [], "school"],
+		[routableStudent, [{ student_id: studentId }], "assigned"],
+	])("rejects invalid student assignments", async (student, stops, message) => {
+		jest.mocked(getPlanStudents).mockResolvedValue([student]);
+		jest.mocked(getStopsForPlan).mockResolvedValue(stops);
+
+		await expect(assignStudent({ routeId, studentId, responsibleStaffId: null })).rejects.toThrow(
+			message,
+		);
+		expect(assignRouteStudent).not.toHaveBeenCalled();
+	});
+
+	it("assigns a routable student without applying capacity rejection", async () => {
+		await assignStudent({ routeId, studentId, responsibleStaffId: staffId });
+
+		expect(assignRouteStudent).toHaveBeenCalledWith(client, routeId, studentId, staffId);
+	});
+
+	it("assigns an available school group with one RPC", async () => {
+		await assignSchoolGroup({ routeId, schoolId });
+
+		expect(assignRouteSchoolGroup).toHaveBeenCalledTimes(1);
+		expect(assignRouteSchoolGroup).toHaveBeenCalledWith(client, routeId, schoolId);
+		expect(assignRouteStudent).not.toHaveBeenCalled();
+	});
+
+	it("guards a stop source before removing it", async () => {
+		await removeStudentStop({ stopId });
+
+		expect(getStopById).toHaveBeenCalledWith(client, stopId);
+		expect(getRouteWithPlan).toHaveBeenCalledWith(client, routeId);
+		expect(removeRouteStop).toHaveBeenCalledWith(client, stopId);
+	});
+
+	it.each([
+		["remove", () => removeStudentStop({ stopId })],
+		["move", () => moveStudentStop({ stopId, targetRouteId })],
+		["responsible staff", () => updateStopResponsibleStaff({ stopId, staffId: null })],
+	])("denies %s before looking up the stop", async (_label, mutate) => {
+		jest.mocked(requireOwner).mockImplementation(() => {
+			throw new Error("Owner access required");
+		});
+
+		await expect(mutate()).rejects.toThrow("Owner access required");
+		expect(getStopById).not.toHaveBeenCalled();
+		expect(removeRouteStop).not.toHaveBeenCalled();
+		expect(moveRouteStop).not.toHaveBeenCalled();
+		expect(setRouteStopResponsibleStaff).not.toHaveBeenCalled();
+	});
+
+	it("moves a stop only between routes in the same plan", async () => {
+		jest
+			.mocked(getRouteWithPlan)
+			.mockResolvedValueOnce(editableRoute)
+			.mockResolvedValueOnce({ ...editableRoute, id: targetRouteId, plan_id: "different-plan" });
+		await expect(moveStudentStop({ stopId, targetRouteId })).rejects.toThrow("same plan");
+		expect(moveRouteStop).not.toHaveBeenCalled();
+
+		jest.mocked(getAuthorizedUser).mockClear();
+		jest.mocked(requireOwner).mockClear();
+		jest
+			.mocked(getRouteWithPlan)
+			.mockResolvedValueOnce(editableRoute)
+			.mockResolvedValueOnce({ ...editableRoute, id: targetRouteId });
+		await moveStudentStop({ stopId, targetRouteId });
+		expect(getAuthorizedUser).toHaveBeenCalledTimes(1);
+		expect(requireOwner).toHaveBeenCalledTimes(1);
+		expect(moveRouteStop).toHaveBeenCalledWith(client, stopId, targetRouteId);
+	});
+
+	it("delegates a full unique reorder to one RPC", async () => {
+		const orderedStopIds = [stopId, "33333333-3333-4333-8333-333333333333"];
+		jest.mocked(getStopsForRoute).mockResolvedValue(orderedStopIds.map((id) => ({ id })));
+		await reorderRouteStops({ routeId, orderedStopIds });
+
+		expect(reorderRouteStopsRpc).toHaveBeenCalledWith(client, routeId, orderedStopIds);
+	});
+
+	it("rejects a partial stop reorder before RPC delegation", async () => {
+		jest
+			.mocked(getStopsForRoute)
+			.mockResolvedValue([{ id: stopId }, { id: "33333333-3333-4333-8333-333333333333" }]);
+
+		await expect(reorderRouteStops({ routeId, orderedStopIds: [stopId] })).rejects.toThrow(
+			"every current route stop",
+		);
+		expect(reorderRouteStopsRpc).not.toHaveBeenCalled();
+	});
+
+	it("rejects a reorder containing a foreign stop before RPC delegation", async () => {
+		jest.mocked(getStopsForRoute).mockResolvedValue([{ id: stopId }]);
+
+		await expect(
+			reorderRouteStops({
+				routeId,
+				orderedStopIds: ["33333333-3333-4333-8333-333333333333"],
+			}),
+		).rejects.toThrow("every current route stop");
+		expect(reorderRouteStopsRpc).not.toHaveBeenCalled();
+	});
+
+	it("validates responsible staff and supports clearing it", async () => {
+		jest.mocked(getStaffById).mockResolvedValueOnce({
+			id: staffId,
+			is_active: false,
+			capabilities: [],
+		});
+		await expect(updateStopResponsibleStaff({ stopId, staffId })).rejects.toThrow("active");
+		expect(setRouteStopResponsibleStaff).not.toHaveBeenCalled();
+
+		await updateStopResponsibleStaff({ stopId, staffId: null });
+		expect(setRouteStopResponsibleStaff).toHaveBeenCalledWith(client, stopId, null);
+	});
+
+	it("does not revalidate when an audited RPC fails", async () => {
+		const rpcError = new Error("RPC failed");
+		jest.mocked(setRouteVehicleRpc).mockRejectedValue(rpcError);
+
+		await expect(setRouteVehicle({ routeId, vehicleId: null })).rejects.toBe(rpcError);
+		expect(revalidatePath).not.toHaveBeenCalled();
 	});
 });

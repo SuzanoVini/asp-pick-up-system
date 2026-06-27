@@ -1,4 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ManagedStopRow } from "../routes/management-types";
+
+export type StopLookupRow = Pick<ManagedStopRow, "id" | "route_id">;
 
 export async function getStopsForRoute(supabase: SupabaseClient, routeId: string) {
 	const { data, error } = await supabase
@@ -7,6 +10,19 @@ export async function getStopsForRoute(supabase: SupabaseClient, routeId: string
 		.eq("route_id", routeId)
 		.order("order_index");
 
+	if (error) throw error;
+	return data;
+}
+
+export async function getStopById(
+	supabase: SupabaseClient,
+	stopId: string,
+): Promise<StopLookupRow> {
+	const { data, error } = await supabase
+		.from("asp_route_stops")
+		.select("id, route_id")
+		.eq("id", stopId)
+		.single();
 	if (error) throw error;
 	return data;
 }

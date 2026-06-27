@@ -1,10 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ManagedRouteRow } from "../routes/management-types";
+import type { ManagedRouteRow, RoutePlanRow } from "../routes/management-types";
 
 export type StaffManagedRouteRow = Omit<
 	ManagedRouteRow,
 	"plate_number_snapshot" | "exported_by" | "created_by" | "updated_by"
 >;
+
+export type RouteWithPlanRow = ManagedRouteRow & {
+	asp_route_plans: RoutePlanRow | RoutePlanRow[] | null;
+};
 
 export async function getRoutesForPlan(
 	supabase: SupabaseClient,
@@ -38,7 +42,10 @@ export async function getRoutesForPlanForRole(
 	return data;
 }
 
-export async function getRouteWithPlan(supabase: SupabaseClient, routeId: string) {
+export async function getRouteWithPlan(
+	supabase: SupabaseClient,
+	routeId: string,
+): Promise<RouteWithPlanRow> {
 	const { data, error } = await supabase
 		.from("asp_routes")
 		.select("*, asp_route_plans(*)")
