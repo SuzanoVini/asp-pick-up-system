@@ -58,6 +58,7 @@ export async function exportRoutePdf(routeId: string) {
 	});
 
 	revalidatePath("/routes");
+	revalidatePath("/route-management");
 
 	const filename = buildRoutePdfFilename({
 		driverName: route.driver_name_snapshot,

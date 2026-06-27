@@ -17,6 +17,21 @@ const nextConfig: NextConfig = {
 			},
 		];
 	},
+	async redirects() {
+		return [
+			{
+				source: "/routes/:path*",
+				destination: "/route-management",
+				permanent: false,
+			},
+			{
+				source: "/kids-and-schools/:path*",
+				destination: "/route-management",
+				permanent: false,
+			},
+			{ source: "/audit", destination: "/", permanent: false },
+		];
+	},
 };
 
 export default nextConfig;

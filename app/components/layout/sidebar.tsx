@@ -1,50 +1,11 @@
 "use client";
 
-import {
-	Archive,
-	Building2,
-	CalendarClock,
-	CalendarDays,
-	Car,
-	ClipboardList,
-	FileText,
-	HardHat,
-	History,
-	LayoutDashboard,
-	ListOrdered,
-	Menu,
-	Route,
-	School,
-	ScrollText,
-	Settings,
-	UserCheck,
-	Users,
-	X,
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "./logo";
-
-const navItems = [
-	{ href: "/", label: "Dashboard", icon: LayoutDashboard },
-	{ href: "/students", label: "Students", icon: Users },
-	{ href: "/schools", label: "Schools", icon: School },
-	{ href: "/guardians", label: "Guardians", icon: UserCheck },
-	{ href: "/enrollments", label: "Enrollments", icon: FileText },
-	{ href: "/calendar-rules", label: "Calendar Rules", icon: CalendarDays },
-	{ href: "/attendance", label: "Attendance", icon: ClipboardList },
-	{ href: "/kids-and-schools", label: "Kids & Schools", icon: Building2 },
-	{ href: "/routes", label: "Route Planner", icon: Route },
-	{ href: "/route-history", label: "Route History", icon: History },
-	{ href: "/vehicles", label: "Vehicles", icon: Car },
-	{ href: "/staff", label: "Staff", icon: HardHat },
-	{ href: "/staff-schedule", label: "Staff Schedule", icon: CalendarClock },
-	{ href: "/waitlist", label: "Waitlist", icon: ListOrdered },
-	{ href: "/former-students", label: "Former Students", icon: Archive },
-	{ href: "/audit", label: "Audit Log", icon: ScrollText },
-	{ href: "/settings", label: "Settings", icon: Settings },
-];
+import { navItems } from "./navigation";
 
 export function Sidebar() {
 	const pathname = usePathname();
