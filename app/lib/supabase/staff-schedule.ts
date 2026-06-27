@@ -1,9 +1,60 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export async function getAvailabilityForWeek(
+export async function getAvailableStaffAndAssignmentsForDate(
 	supabase: SupabaseClient,
-	weekDates: string[],
+	date: string,
 ) {
+	const [staffResult, assignmentsResult] = await Promise.all([
+		supabase
+			.from("asp_staff")
+			.select("*, asp_staff_availability!inner(date, is_available)")
+			.eq("is_active", true)
+			.eq("asp_staff_availability.date", date)
+			.eq("asp_staff_availability.is_available", true)
+			.order("name"),
+		supabase
+			.from("asp_staff_assignments")
+			.select("*, asp_staff(name, capabilities), asp_vehicles(name)")
+			.eq("date", date),
+	]);
+	if (staffResult.error) throw staffResult.error;
+	if (assignmentsResult.error) throw assignmentsResult.error;
+	return { staff: staffResult.data, assignments: assignmentsResult.data };
+}
+
+export async function upsertAssignmentForVehicleDate(
+	supabase: SupabaseClient,
+	staffId: string,
+	date: string,
+	vehicleId: string,
+	role: "driver" | "helper",
+) {
+	const { data, error } = await supabase.rpc("upsert_staff_assignment_for_vehicle_date", {
+		p_staff_id: staffId,
+		p_date: date,
+		p_vehicle_id: vehicleId,
+		p_role: role,
+	});
+	if (error) throw error;
+	return data;
+}
+
+export async function removeAssignmentForVehicleDateRole(
+	supabase: SupabaseClient,
+	date: string,
+	vehicleId: string,
+	role: "driver" | "helper",
+) {
+	const { data, error } = await supabase.rpc("remove_staff_assignment_for_vehicle_date_role", {
+		p_date: date,
+		p_vehicle_id: vehicleId,
+		p_role: role,
+	});
+	if (error) throw error;
+	return data;
+}
+
+export async function getAvailabilityForWeek(supabase: SupabaseClient, weekDates: string[]) {
 	const { data, error } = await supabase
 		.from("asp_staff_availability")
 		.select("*, asp_staff(name, capabilities, is_active)")
@@ -33,10 +84,7 @@ export async function setAvailability(
 ) {
 	const { data, error } = await supabase
 		.from("asp_staff_availability")
-		.upsert(
-			{ staff_id: staffId, date, is_available: isAvailable },
-			{ onConflict: "staff_id,date" },
-		)
+		.upsert({ staff_id: staffId, date, is_available: isAvailable }, { onConflict: "staff_id,date" })
 		.select()
 		.single();
 
@@ -77,10 +125,7 @@ export async function getAssignmentsForDate(supabase: SupabaseClient, date: stri
 	return data;
 }
 
-export async function getAssignmentsForWeek(
-	supabase: SupabaseClient,
-	weekDates: string[],
-) {
+export async function getAssignmentsForWeek(supabase: SupabaseClient, weekDates: string[]) {
 	const { data, error } = await supabase
 		.from("asp_staff_assignments")
 		.select("*, asp_staff(name, capabilities), asp_vehicles(name)")
