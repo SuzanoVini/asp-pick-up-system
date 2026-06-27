@@ -52,6 +52,8 @@ export interface RouteStop {
 	schoolNameSnapshot: string;
 	schoolAddressSnapshot: string | null;
 	dismissalTimeSnapshot: string | null;
+	responsibleStaffId?: string | null;
+	responsibleStaffNameSnapshot?: string | null;
 }
 
 export interface VehicleRoute {
@@ -76,10 +78,22 @@ export interface RouteGenerationResult {
 	warnings: string[];
 }
 
+export const READINESS_CHECK_NAMES = [
+	"stale_route",
+	"unrouted_students",
+	"missing_driver",
+	"missing_helper",
+	"over_capacity",
+	"booster_shortage",
+	"missing_address",
+	"duplicate_student",
+] as const;
+
+export type ReadinessCheckName = (typeof READINESS_CHECK_NAMES)[number];
 export type ReadinessSeverity = "blocker" | "warning";
 
 export interface ReadinessCheck {
-	name: string;
+	name: ReadinessCheckName;
 	severity: ReadinessSeverity;
 	passed: boolean;
 	message: string;
