@@ -13,6 +13,7 @@ out/
 # Build
 dist/
 build/
+*.tsbuildinfo
 
 # OS
 .DS_Store
@@ -32,6 +33,7 @@ PORTFOLIO_DEMO_PLAN.md
 
 # Superpowers brainstorm sessions
 .superpowers/
+.worktrees/
 
 # Claude Code internal
 .claude/
