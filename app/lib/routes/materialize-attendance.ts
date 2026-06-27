@@ -1,14 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeAttendance } from "../engine/compute-attendance";
 import type {
-	Student,
-	Enrollment,
-	CalendarRule,
-	School,
-	SystemSettings,
-	ManualOverride,
-	DayOfWeek,
 	AttendanceResult,
+	CalendarRule,
+	DayOfWeek,
+	Enrollment,
+	ManualOverride,
+	School,
+	Student,
+	SystemSettings,
 } from "../engine/types";
 import { getSystemSettings } from "../supabase/settings";
 
@@ -16,19 +16,28 @@ export async function materializeAttendanceForDate(
 	supabase: SupabaseClient,
 	date: string,
 ): Promise<AttendanceResult[]> {
-	const [
-		{ data: studentsRaw },
-		{ data: enrollmentsRaw },
-		{ data: rulesRaw },
-		{ data: schoolsRaw },
-		{ data: existingRows },
-	] = await Promise.all([
-		supabase.from("asp_students").select("*").eq("status", "active"),
-		supabase.from("asp_enrollments").select("*").eq("status", "active"),
-		supabase.from("asp_calendar_rules").select("*").eq("is_active", true),
-		supabase.from("asp_schools").select("*"),
-		supabase.from("asp_daily_attendance").select("*").eq("date", date),
-	]);
+	const [studentsResult, enrollmentsResult, rulesResult, schoolsResult, existingResult] =
+		await Promise.all([
+			supabase.from("asp_students").select("*").eq("status", "active"),
+			supabase.from("asp_enrollments").select("*").eq("status", "active"),
+			supabase.from("asp_calendar_rules").select("*").eq("is_active", true),
+			supabase.from("asp_schools").select("*"),
+			supabase.from("asp_daily_attendance").select("*").eq("date", date),
+		]);
+	for (const result of [
+		studentsResult,
+		enrollmentsResult,
+		rulesResult,
+		schoolsResult,
+		existingResult,
+	]) {
+		if (result.error) throw result.error;
+	}
+	const studentsRaw = studentsResult.data;
+	const enrollmentsRaw = enrollmentsResult.data;
+	const rulesRaw = rulesResult.data;
+	const schoolsRaw = schoolsResult.data;
+	const existingRows = existingResult.data;
 
 	const settings = await getSystemSettings(supabase);
 
@@ -98,37 +107,23 @@ export async function materializeAttendanceForDate(
 		existingOverrides: overrides,
 	});
 
-	const existingMap = new Map((existingRows ?? []).map((r) => [r.student_id, r]));
 	const now = new Date().toISOString();
-
-	for (const result of results) {
-		const existing = existingMap.get(result.studentId);
-
-		if (existing && existing.is_manual_override) {
-			continue;
-		}
-
-		const row = {
-			student_id: result.studentId,
-			date,
-			status: result.status,
-			original_status: result.status,
-			effective_dismissal_time: result.effectiveDismissalTime,
-			is_manual_override: result.isManualOverride,
-			applied_rule_ids: result.appliedRules,
-			modified_by: result.isManualOverride ? "manual" : "system",
-			materialized_at: now,
-		};
-
-		if (existing) {
-			await supabase
-				.from("asp_daily_attendance")
-				.update(row)
-				.eq("id", existing.id);
-		} else {
-			await supabase.from("asp_daily_attendance").insert(row);
-		}
-	}
+	const rows = results.map((result) => ({
+		student_id: result.studentId,
+		date,
+		status: result.status,
+		original_status: result.status,
+		effective_dismissal_time: result.effectiveDismissalTime,
+		is_manual_override: result.isManualOverride,
+		applied_rule_ids: result.appliedRules,
+		modified_by: result.isManualOverride ? "manual" : "system",
+		materialized_at: now,
+	}));
+	const { error } = await supabase.rpc("persist_materialized_attendance_and_sync_plan", {
+		p_date: date,
+		p_rows: rows,
+	});
+	if (error) throw error;
 
 	return results;
 }
