@@ -13,7 +13,7 @@ The ASP Pick-Up Management System is a server-rendered web application with a Po
 
 1. **Data Layer**  --  Supabase PostgreSQL with `asp_*` namespaced tables, Row-Level Security, and audit columns on all operational tables.
 2. **Rule Engine**  --  Pure TypeScript functions that compute daily attendance from enrollment contracts and calendar rules. No database dependency for logic; fully testable with static fixtures.
-3. **Route Planner**  --  Per-date route generation with distance-based auto-assignment, full manual editing, readiness validation, and PDF export.
+3. **Route Builder**  --  Per-date pickup-list generation, manual vehicle/staff/student assignment, stop ordering, readiness validation, and PDF export.
 4. **White-Label UI**  --  CSS variable theme tokens, replaceable logo slot, dark sidebar navigation compatible with future dashboard integration.
 
 ### 1.1 Daily Operational Flow
@@ -22,14 +22,15 @@ The ASP Pick-Up Management System is a server-rendered web application with a Po
 Enrollment Contracts + Calendar Rules
   -> Compute attendance (real-time, any date)
   -> Kids & Schools operational view (grouped by school, sectioned by status)
-  -> Generate routes (auto-optimized by school distance, fully editable)
-  -> Validate readiness -> Export PDF (per vehicle)
+  -> Generate daily pickup list
+  -> Build routes manually (vehicles, staff, kids/schools, stop order)
+  -> Validate readiness -> Finalize -> Export PDF (per vehicle)
 ```
 
 ### 1.2 Key Architectural Decisions
 
 - **Attendance is computed, not mutated.** Rules are always applied. There is no manual "apply rules" button. The system evaluates rules against enrollments in real time.
-- **Routes are per-date.** No day-of-week templates. Each day's routes are generated fresh from the attendance list, fully editable, and persisted with snapshot fields for historical accuracy.
+- **Routes are per-date and operator-controlled.** No day-of-week templates. Each day's pickup list is generated from attendance, but final vehicle/staff/student/stop assignment is manually controlled by the operator and persisted with snapshot fields for historical accuracy.
 - **Standalone-compatible schema.** All tables use `asp_*` prefixes. The schema can run in its own database project or later merge into a shared project.
 - **Server actions as the trust boundary.** All mutations go through Next.js server actions with Zod validation. The client never performs raw database writes.
 
@@ -112,8 +113,8 @@ The database uses 17 active tables with `asp_` prefix, plus one deferred reporti
 | asp_staff_availability | Date-specific staff availability (opt-in model) |
 | asp_staff_assignments | Per-date staff-to-vehicle assignments |
 | asp_vehicles | Vehicle fleet with seat and booster capacity |
-| asp_routes | Per-date route records with status and snapshots |
-| asp_route_stops | Student seat assignments within routes with display snapshots |
+| asp_routes | Per-date route records with status and route-level history snapshots |
+| asp_route_stops | Ordered student seat assignments within routes with historical display snapshots |
 | asp_waitlist | Pre-enrollment waitlist tracking |
 | asp_sync_events | Cross-system review events for future integration |
 | asp_audit_events | Immutable append-only audit trail |
@@ -135,6 +136,8 @@ The database uses 17 active tables with `asp_` prefix, plus one deferred reporti
 ### 4.3 Snapshot Fields
 
 Route stops store snapshot fields (`student_name_snapshot`, `school_name_snapshot`, `school_address_snapshot`, `dismissal_time_snapshot`) populated at generation time. Routes store `vehicle_name_snapshot`, `driver_name_snapshot`, `helper_name_snapshot` that update when assignments change and freeze when the route is marked completed.
+
+Route history is reconstructed from `asp_routes` plus `asp_route_stops`, not from generic audit events. For a selected route date, the UI should group records by vehicle route, sort stops by `order_index`, and display the frozen vehicle, driver, helper, student, school, address, dismissal, booster, and distance/duration values that represented the actual route at completion/export time.
 
 ### 4.4 Student <-> Enrollment Invariants
 
@@ -302,24 +305,25 @@ The Kids & Schools view is a daily operational screen generated from computed or
 - Booster indicator per student
 - Sort controls for school name and student name
 
-### 8.3 Relationship to Route Planner
+### 8.3 Relationship to Route Builder
 
-Only the Present section feeds route generation. Drop-off Only students appear for operational awareness but are excluded from pickup routes and PDFs.
+Only the Present section feeds the route builder pickup pool. Drop-off Only students appear for operational awareness but are excluded from pickup routes and PDFs.
 
 ---
 
-## 9. Route Planner Design
+## 9. Route Builder Design
 
-### 9.1 Generation Algorithm
+### 9.1 Target Route Builder Flow
 
 1. Collect routable students (P, E, ED; excluding `drop_off_only`)
-2. Group by school (geocoded location)
-3. Assign to vehicles by school proximity, respecting `kids_seats` capacity
-4. Suggest route order: origin -> nearest school -> next nearest (Google driving distance when configured; coordinate fallback otherwise)
-5. Flag booster-required students (age < 9)
-6. Assign available staff by role
-7. Calculate school-to-school distances (first student per school only)
-8. Populate display snapshots
+2. Group the daily pickup list by school and expose school/student cards for assignment
+3. Create editable vehicle lanes for the selected date
+4. Let the operator choose the vehicle for each lane
+5. Let the operator choose driver and helper for each lane from available qualified staff
+6. Let the operator drag students or school groups into lanes, including multiple vehicles even when one vehicle has remaining capacity
+7. Let the operator manually reorder school/student stops inside each lane
+8. Calculate distance/duration suggestions and warnings without overriding manual order
+9. Populate display snapshots when assignments are saved/finalized
 
 ### 9.2 Distance Handling
 
@@ -329,18 +333,27 @@ Only the Present section feeds route generation. Drop-off Only students appear f
 - Only the first student row at each school stores the distance value; subsequent same-school rows have NULL distance
 - `total_distance_km` on the route sums non-null distance values only
 - Route origin (program location) is configurable via settings. If not configured, school-to-school ordering is used without an origin leg.
+- Distance data is advisory in the manual route board. It can suggest ordering and display route leg context, but the operator's manual order is the final source of truth.
 
 ### 9.3 Editing Model
 
 - Owner/admin only
 - Routes with status `draft`, `active`, or `stale` are editable
 - Completed routes are immutable (reopening creates an audit event)
+- Vehicle assignment is editable until completion
+- Driver/helper assignment is editable until completion
+- Student assignment to vehicles is editable until completion
+- School/student stop order is editable until completion
 - Edits recalculate distances, durations, and totals
 - New stops receive snapshots at addition time
 - Staff reassignment updates route-level snapshots until completion
 - Each vehicle block shows seat usage and booster capacity versus booster-required assigned students
 
-### 9.4 Readiness Validation
+### 9.4 Current Implementation Gap
+
+The existing implementation can compute attendance, generate route records, display vehicle route cards, validate readiness, and export route PDFs through server actions. The required spreadsheet-style Route Builder UI is not complete yet. The current route UI must be replaced or extended with a board that supports manual vehicle selection, manual driver/helper assignment, manual student/school assignment, stop ordering, finalization, and explicit PDF export.
+
+### 9.5 Readiness Validation
 
 Eight checks run before PDF export. Blockers prevent export unless an owner explicitly overrides (with audit trail including overridden checks and reason). Warnings allow export with acknowledgment.
 
@@ -354,6 +367,20 @@ Eight checks run before PDF export. Blockers prevent export unless an owner expl
 | Booster shortage | Warning |
 | Missing school address | Warning |
 | Duplicate student across routes | Blocker |
+
+### 9.6 Route History View
+
+The route history view is an operational replay of what was built for a selected route date. It must not be a thin audit-event list such as "route created"; that is not enough to understand what happened operationally.
+
+For each date, the view loads route records from `asp_routes` and their ordered stops from `asp_route_stops`. It presents one section per vehicle route with:
+
+- Route date, created time, updated/finalized/exported time, status, and export metadata where available
+- Vehicle snapshot, driver snapshot, and helper snapshot
+- Ordered route stops by `order_index`
+- Student snapshot, school snapshot, school address snapshot, dismissal time snapshot, booster flag, seat number, and distance/duration values
+- Route totals and readiness/export status
+
+Audit events can be linked from the route history view to answer "who changed this and when." They are supporting metadata only. The route history page answers "what did the actual route look like that day."
 
 ---
 
@@ -458,6 +485,8 @@ All user-facing writes create `asp_audit_events` records:
 
 Audit events are immutable. No UPDATE or DELETE policies exist. Inserts happen only via trusted server actions.
 
+Route audit events identify lifecycle actions such as create, update, reopen, override, finalize, or export. They do not contain the full operational route. Any UI that needs to visualize a historical route must read `asp_routes` and `asp_route_stops` snapshots.
+
 ### 13.2 Sync Events
 
 `asp_sync_events` supports future bidirectional integration:
@@ -537,14 +566,14 @@ Configurable via `asp_settings` (`app_name` key). Used in sidebar, page titles, 
 ### 15.4 Component Tests
 
 - Attendance status rendering and color coding
-- Route editor interactions
+- Route builder interactions
 - Calendar rule form validation
 - Staff schedule grid behavior
 
 ### 15.5 E2E Tests (Playwright)
 
 - Create student -> create enrollment -> view in attendance
-- Generate routes -> verify student assignments
+- Build routes -> verify vehicle/staff/student assignments
 - Export PDF -> verify download
 - Calendar rule creation -> attendance effect
 

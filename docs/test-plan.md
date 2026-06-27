@@ -113,12 +113,13 @@ The rule engine is a set of pure TypeScript functions with no database dependenc
 
 ## 2. Route Logic Tests
 
-### 2.1 Route Generation
+### 2.1 Pickup List Generation
 
-- Auto-assignment respects vehicle kids_seats capacity
+- Pickup list includes routable students only (P, E, ED, excluding drop_off_only)
+- Pickup list groups routable students by school
+- Pickup list shows dismissal time, booster requirement, school address, and current route assignment state
 - Booster-required students are flagged (needs_booster = true)
 - Booster count exceeding vehicle booster_seats produces a warning
-- Only routable students (P, E, ED, excluding drop_off_only) are assigned to routes
 - Drop-off-only students do not appear in route stops
 - Status D students do not appear in route source lists or PDFs
 - Route order index is sequential within each vehicle
@@ -142,12 +143,17 @@ The rule engine is a set of pure TypeScript functions with no database dependenc
 - The database trigger rejects the insert with a clear error
 - Client-side validation prevents the attempt before it reaches the server
 
-### 2.4 Route Editing
+### 2.4 Manual Route Builder
 
+- Operator can create or select vehicle lanes for the selected date
+- Operator can manually assign a vehicle to each lane
+- Operator can manually assign a driver and helper to each vehicle route
+- Operator can assign students or school groups to vehicles regardless of remaining capacity in other vehicles
 - Moving a student between vehicles updates both routes
 - Reordering stops updates order_index values
 - Adding a student to a route creates snapshot fields
 - Removing a student from a route returns them to the unrouted pool
+- Driver/start-stop behavior is represented first when staff pickup/start-stop tracking is enabled
 - Completed routes cannot be edited unless explicitly reopened
 - Reopening a completed route creates an audit event
 
@@ -183,6 +189,16 @@ All eight checks produce correct results:
 - Changing the school's address after route generation does not affect the snapshot
 - Route-level snapshots (vehicle, driver, helper names) update on reassignment
 - Route-level snapshots freeze when status becomes completed
+
+### 2.8 Route History Reconstruction
+
+- Route history loads all routes for a selected date
+- Routes are grouped by vehicle route
+- Stops are sorted by `order_index`
+- Each historical route shows vehicle, driver, helper, ordered students, schools, addresses, dismissal times, booster indicators, seats, and route totals
+- Generic audit events are not required to reconstruct route details
+- Related audit events can be displayed as metadata without replacing the route snapshot
+- Completed/exported route history remains accurate after source student, school, staff, or vehicle records are edited
 
 ---
 
@@ -239,7 +255,9 @@ All eight checks produce correct results:
 
 ### 4.2 Route Editor
 
-- Drag-and-drop moves students between vehicles
+- Drag-and-drop or equivalent controls move students between vehicles
+- Manual driver/helper selectors update the vehicle route
+- Manual vehicle selectors update the route lane
 - Capacity warnings appear when a vehicle exceeds kids_seats
 - Booster warnings appear when booster count exceeds booster_seats
 - Duplicate assignment is prevented in the UI
@@ -274,12 +292,16 @@ Smoke tests covering critical end-to-end paths:
 - Verify the student appears in the attendance preview for a contracted day
 - Verify the student does not appear for a non-contracted day
 
-### 5.2 Route Generation Flow
+### 5.2 Route Builder Flow
 
-- Generate routes for a date with present students
-- Verify students are assigned to vehicles
+- Generate the pickup list for a date with present students
+- Manually assign vehicles, drivers, helpers, and students/school groups
+- Manually arrange stop order across multiple vehicles
 - Verify route readiness validation runs
+- Finalize a vehicle route
 - Export PDF and verify the download completes
+- Open route history for the same date
+- Verify the history shows the exported route with the correct vehicle, driver, helper, student order, schools, and addresses
 
 ### 5.3 Calendar Rule Effect
 
@@ -292,7 +314,7 @@ Smoke tests covering critical end-to-end paths:
 - Preview attendance for a date
 - Override a student's status from P to A
 - Verify the override persists on page reload
-- Generate routes and verify the absent student is not assigned
+- Generate the pickup list and verify the absent student is not assignable to a vehicle route
 
 ---
 

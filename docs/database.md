@@ -206,7 +206,7 @@ Key constraints:
 
 ### asp_staff_assignments
 
-Single source of truth for which staff member works which vehicle on which date.
+Single source of truth for which staff member works which vehicle on which date. These rows are selected by the operator during manual route building. Automatic suggestions may prefill values, but the manual assignment is authoritative.
 
 | Column | Type | Constraints / Notes |
 |--------|------|---------------------|
@@ -225,7 +225,7 @@ Assignment validation (enforced by trigger):
 - Staff member must have an availability entry for the date with is_available = true.
 - Staff member's capabilities must include the assigned role.
 
-Note: `asp_routes` does not store driver/helper IDs. Staff assignment is read by joining on date + vehicle_id.
+Note: `asp_routes` currently stores driver/helper name snapshots but not driver/helper IDs. The authoritative staff assignment is read from `asp_staff_assignments` by date + vehicle_id until the route is completed, at which point snapshots freeze for history/PDF output.
 
 ---
 
@@ -247,7 +247,7 @@ Vehicle fleet used for pickup routes.
 
 ### asp_routes
 
-Per-date route records with status tracking and display snapshots.
+Per-date vehicle route records with status tracking and display snapshots. A route represents one vehicle lane for one date. Together with `asp_route_stops`, this table is the source of truth for visualizing historical routes.
 
 | Column | Type | Constraints / Notes |
 |--------|------|---------------------|
@@ -265,13 +265,13 @@ Per-date route records with status tracking and display snapshots.
 Key constraints:
 - UNIQUE(date, vehicle_id) -- one route per vehicle per day.
 
-Snapshot lifecycle: snapshots reflect current state until the route's status becomes `completed`, at which point they freeze.
+Snapshot lifecycle: snapshots reflect current vehicle/staff/source data until the route's status becomes `completed`, at which point they freeze. Route history pages should use these snapshots to show what vehicle, driver, and helper were assigned on the actual route date.
 
 ---
 
 ### asp_route_stops
 
-Student seat assignments within routes, with display snapshots for historical accuracy.
+Student seat and stop-order assignments within routes, with display snapshots for historical accuracy. These rows are the persisted result of the manual route board and the detailed source for route history.
 
 | Column | Type | Constraints / Notes |
 |--------|------|---------------------|
@@ -295,6 +295,13 @@ Key constraints:
 - Cross-vehicle duplicate prevention via database trigger: a student cannot appear on two routes for the same date.
 
 Drop-off-only students are excluded from route generation and do not appear in this table.
+
+Historical route reconstruction:
+- Query `asp_routes` by route date.
+- Join `asp_route_stops` by `route_id`.
+- Group by vehicle route.
+- Sort stops by `order_index`.
+- Display student, school, address, dismissal, booster, seat, distance, duration, vehicle, driver, and helper snapshot values rather than current source-table names.
 
 ---
 
@@ -341,7 +348,7 @@ Owner read-only. Sync event creation and review updates are performed by trusted
 
 ### asp_audit_events
 
-Immutable, append-only audit trail for all user-facing mutations.
+Immutable, append-only audit trail for all user-facing mutations. This table records who did what and when; it is not the route-history detail store.
 
 | Column | Type | Constraints / Notes |
 |--------|------|---------------------|
@@ -354,6 +361,8 @@ Immutable, append-only audit trail for all user-facing mutations.
 | performed_at | timestamptz | NOT NULL, DEFAULT now(). Set server-side |
 
 No UPDATE or DELETE policies exist. Inserts happen only via trusted server actions using the service role. This table does not have `updated_at` or `updated_by` columns.
+
+For route operations, audit events should link to the related route entity and summarize the lifecycle action. Full historical route visualization comes from `asp_routes` and `asp_route_stops`.
 
 ---
 

@@ -1,6 +1,6 @@
 # ASP Pick-Up Management System
 
-A white-label web application for managing after-school program pickup logistics. The system handles student enrollment, daily attendance computation from calendar rules, distance-optimized route generation, and per-vehicle PDF export for drivers.
+A white-label web application for managing after-school program pickup logistics. The system handles student enrollment, daily attendance computation from calendar rules, daily pickup-list review, manual route building, and per-vehicle PDF export for drivers.
 
 Built as a standalone operational tool that can later integrate into a larger administration dashboard.
 
@@ -101,7 +101,7 @@ app/
   calendar-rules/         Attendance rule management
   attendance/             Daily attendance preview and overrides
   kids-and-schools/       Daily operational grouping view
-  routes/                 Route planner and editor
+  routes/                 Manual route builder and PDF export
   vehicles/               Vehicle fleet management
   staff/                  Staff management
   staff-schedule/         Weekly availability and assignment
@@ -135,11 +135,13 @@ supabase/
 
 - **Kids and Schools View** -- Daily operational view grouping students by school, with sections for present, drop-off only, absent, and not-scheduled students.
 
-- **Route Planner** -- Per-date route generation with Google Maps-powered school geocoding and driving-distance ordering when configured, drag-and-drop editing, capacity validation, and readiness checks before export.
+- **Route Builder** -- Spreadsheet-style daily route workflow: generate the pickup list, manually assign students/schools to vehicles, choose drivers/helpers, arrange stop order, validate capacity/readiness, and export final per-vehicle PDFs. Automatic ordering is a suggestion layer, not the source of truth.
+
+- **Route History** -- Persisted per-date route snapshots designed to show what was actually created: vehicle, staff, ordered students, schools, addresses, dismissal times, booster needs, and export details.
 
 - **PDF Export** -- Per-vehicle route PDFs with driver, student, school, address, dismissal time, and booster indicators.
 
-- **Staff Scheduling** -- Two-layer weekly view for managing date-specific staff availability and vehicle/role assignments.
+- **Staff Scheduling** -- Date-specific staff availability plus manual driver/helper assignment to each vehicle route.
 
 - **White-Label Architecture** -- CSS variable theme tokens, replaceable logo slot, and configurable app name. No hardcoded branding.
 

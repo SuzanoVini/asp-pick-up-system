@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-This document specifies the software requirements for a white-label After School Program (ASP) Pick-Up Management System. The system replaces a spreadsheet-based pickup workflow with a purpose-built web application that manages student enrollment, computes daily attendance from calendar rules, generates distance-optimized pickup routes, and exports per-vehicle route PDFs for drivers.
+This document specifies the software requirements for a white-label After School Program (ASP) Pick-Up Management System. The system replaces a spreadsheet-based pickup workflow with a purpose-built web application that manages student enrollment, computes daily attendance from calendar rules, prepares daily pickup lists, supports manual route building, and exports per-vehicle route PDFs for drivers.
 
 ## 2. Scope
 
@@ -17,8 +17,8 @@ The system is an operational admin tool for managing after-school program logist
 
 1. Enrollment data management (students, schools, guardians, vehicles, staff)
 2. Daily attendance computation from enrollment contracts and calendar rules
-3. Suggested pickup routes optimized by school distance
-4. Manual route editing
+3. Daily pickup-list generation grouped by school
+4. Manual route building with vehicle, staff, student, school, and stop-order assignment
 5. Per-vehicle route PDF export
 6. Waitlist, former student, and staff schedule management
 
@@ -37,10 +37,13 @@ The system serves organizations that operate after-school pickup programs, trans
 
 The daily operational workflow is:
 
-1. Calendar rules and enrollment contracts determine which students need pickup on any given day
-2. The system computes daily attendance in real time
-3. An operator generates optimized pickup routes, assigning students to vehicles
-4. Routes are reviewed, adjusted as needed, and exported as PDF documents for drivers
+1. Operators maintain enrollment contracts and calendar rules
+2. Operators select a date and review computed attendance for that day
+3. Operators apply manual attendance overrides where needed
+4. The system generates the daily pickup list of routable students and schools
+5. Operators manually build the route board by assigning vehicles, drivers, helpers, students, school groups, and stop order
+6. The system validates readiness, capacity, duplicates, school addresses, and staff assignments
+7. Operators export finalized per-vehicle route PDFs for drivers
 
 ### 3.1 White-Label Design
 
@@ -235,29 +238,35 @@ The system shall support nine calendar rule types:
 
 ## 8. Route Planning
 
-### 8.1 Route Generation
+### 8.1 Pickup List Generation
 
 | ID | Requirement |
 |----|-------------|
-| FR-RG01 | Route generation collects routable students (status P, E, or ED, excluding drop_off_only students). |
-| FR-RG02 | Students are auto-assigned to vehicles optimizing by school proximity, respecting vehicle seat capacity (`kids_seats`). |
-| FR-RG03 | Route order is suggested starting from a configured route origin (program location), sorting by nearest school. When Google Maps is configured, ordering uses driving distance; otherwise it falls back to stored coordinates and straight-line distance. If no origin is configured, school-to-school distances are used without an origin leg. |
+| FR-RG01 | Pickup list generation collects routable students (status P, E, or ED, excluding drop_off_only students). |
+| FR-RG02 | The system groups the pickup list by school and displays each student's dismissal time, booster need, attendance status, and current route assignment state. |
+| FR-RG03 | The system may suggest school order starting from a configured route origin. When Google Maps is configured, suggestions use driving distance; otherwise they fall back to stored coordinates and straight-line distance. If no origin is configured, school-to-school distances are used without an origin leg. |
 | FR-RG04 | Booster-required students are flagged. A warning is shown when booster count exceeds vehicle booster capacity. |
-| FR-RG05 | Available staff (explicit date-specific availability entries) are auto-assigned to vehicles by role. |
+| FR-RG05 | Pickup list generation shall not be the final authority for vehicle, driver, helper, or student assignment. Operators must be able to override all suggested assignments manually. |
 | FR-RG06 | Distance and duration between consecutive school stops are calculated when Google Maps and school coordinates are available. Distance is recorded only on the first student at each school stop to avoid inflating totals. |
-| FR-RG07 | Route generation materializes attendance if not already materialized. |
-| FR-RG08 | Each vehicle block in the route planner shall show booster capacity and the number of booster-required students currently assigned to that vehicle. |
+| FR-RG07 | Pickup list generation materializes attendance if not already materialized. |
+| FR-RG08 | The route board shall show each vehicle's student capacity, booster capacity, assigned student count, and booster-required count. |
 
-### 8.2 Route Editing
+### 8.2 Manual Route Builder
 
 | ID | Requirement |
 |----|-------------|
-| FR-RE01 | Route editing is owner/admin only. |
-| FR-RE02 | The operator can drag students between vehicles, reorder stops, reassign staff, remove students from routes, and add unrouted students. |
-| FR-RE03 | All edits are validated: no cross-vehicle duplicates, capacity checks, booster warnings. |
-| FR-RE04 | Editing recalculates distances, durations, and totals for affected routes. |
-| FR-RE05 | Completed routes (post-export) are immutable unless explicitly reopened, which creates an audit event. |
-| FR-RE06 | A student cannot be assigned to two vehicles on the same day. Enforced both client-side and server-side. |
+| FR-RE01 | Route building is owner/admin only. |
+| FR-RE02 | The route board shall present available vehicles as editable lanes/columns for the selected date. |
+| FR-RE03 | Operators shall manually assign a vehicle to each route lane. |
+| FR-RE04 | Operators shall manually assign one driver and optionally one helper to each vehicle route. |
+| FR-RE05 | A driver is always considered part of the pickup route team. If staff pickup/start-stop tracking is enabled, the driver/start location must appear as the first route stop before school stops. |
+| FR-RE06 | Operators shall manually assign students or school groups to vehicles, even when another vehicle still has open capacity. Location and operational judgment take precedence over automatic fill-by-capacity behavior. |
+| FR-RE07 | Operators shall reorder stops manually within each vehicle route. |
+| FR-RE08 | Operators shall remove assigned students back to the unrouted pool and add unrouted students to any eligible vehicle. |
+| FR-RE09 | All edits are validated: no cross-vehicle duplicates, vehicle capacity checks, booster warnings, missing address warnings, and staff assignment conflicts. |
+| FR-RE10 | Editing recalculates distances, durations, and totals for affected routes where distance data is available. |
+| FR-RE11 | Completed routes (post-export) are immutable unless explicitly reopened, which creates an audit event. |
+| FR-RE12 | A student cannot be assigned to two vehicles on the same day. Enforced both client-side and server-side. |
 
 ### 8.3 Route Readiness Validation
 
@@ -283,6 +292,10 @@ Blockers prevent export unless an owner explicitly overrides (with audit trail).
 | FR-RH01 | Each generated route is saved per date with full stop, staff, and vehicle details. |
 | FR-RH02 | Route stops store snapshot fields (student name, school name, school address, dismissal time) so historical records remain accurate even if source data changes. |
 | FR-RH03 | Route-level snapshots (vehicle name, driver name, helper name) reflect current state until the route is completed, then freeze. |
+| FR-RH04 | The route history view shall reconstruct what the actual route looked like for a selected date, grouped by vehicle route and ordered by stop sequence. |
+| FR-RH05 | Route history shall show route date, route creation/finalization/export timestamps, vehicle, driver, helper, ordered students, schools, addresses, dismissal times, booster indicators, and route totals where available. |
+| FR-RH06 | Generic audit events shall not be the primary route history record. Audit events may link to a route snapshot, but the operational view must come from persisted route and route-stop snapshots. |
+| FR-RH07 | Completed/exported route snapshots shall remain viewable after students, schools, staff, or vehicles are renamed or edited. |
 
 ## 9. Staff Schedule
 
@@ -291,7 +304,7 @@ Blockers prevent export unless an owner explicitly overrides (with audit trail).
 | FR-SS01 | The system shall provide a weekly Mon-Fri staff scheduling view. |
 | FR-SS02 | Staff availability is date-specific. If no availability entry exists for a date, the staff member is NOT available. |
 | FR-SS03 | The UI supports bulk creation of availability entries for a full week. |
-| FR-SS04 | Staff assignments (which staff works which vehicle) are populated during route generation and editable by owner/admin afterward. |
+| FR-SS04 | Staff assignments (which staff works which vehicle) are manually selected by owner/admin during route building. Automatic suggestions may exist but must not replace manual selection. |
 | FR-SS05 | The schedule view visually distinguishes availability (base grid) from assignments (overlay showing vehicle/role). |
 | FR-SS06 | A staff member works one vehicle per day. One driver and one helper per vehicle per day. |
 | FR-SS07 | Assignment validation ensures the staff member's capabilities include the assigned role. |
@@ -306,6 +319,7 @@ Blockers prevent export unless an owner explicitly overrides (with audit trail).
 | FR-PDF04 | Export records `exported_at` and `exported_by` on the route. |
 | FR-PDF05 | PDFs are generated server-side and delivered as downloads. |
 | FR-PDF06 | Generated route PDFs contain operational student data and shall not be stored in public buckets, committed to the repository, or exposed through unauthenticated URLs. |
+| FR-PDF07 | PDF export shall be initiated from a clear final route section/state after the operator has arranged and reviewed vehicle routes. |
 
 ## 11. Dashboard
 
@@ -380,7 +394,8 @@ Blockers prevent export unless an owner explicitly overrides (with audit trail).
 |----|-------------|
 | AR-01 | All user-facing writes create immutable audit events recording entity type, entity ID, action, old/new values, user, and timestamp. |
 | AR-02 | Route export blocker overrides create audit events with the overridden checks and optional reason. |
-| AR-03 | Cross-system status changes (future integration) generate review events, never automatic status updates. |
+| AR-03 | Route-related audit events shall capture who performed route actions and when, but shall not replace the route history snapshot required to visualize the completed route. |
+| AR-04 | Cross-system status changes (future integration) generate review events, never automatic status updates. |
 
 ## 16. Integration Assumptions
 
@@ -402,8 +417,8 @@ The system is acceptable when:
 5. All nine calendar rule types are implemented with passing tests.
 6. Attendance computation correctly handles all rule types, conflicts, N/E isolation, and manual overrides.
 7. The Kids & Schools view correctly groups students into Present, Drop-off Only, Absent, and Not Scheduled sections.
-8. Route generation produces distance-optimized suggestions respecting vehicle capacity, using Google driving distance when configured and coordinate fallback otherwise.
-9. Route editing supports drag-and-drop with duplicate prevention and capacity validation.
+8. Pickup list generation produces a correct daily list of routable students and school groups, with optional distance-based route suggestions.
+9. Manual route building supports assigning vehicles, drivers, helpers, students/school groups, and stop order with duplicate prevention and capacity validation.
 10. Route readiness validation enforces all blockers and warnings before PDF export.
 11. Per-vehicle PDF export follows the specified naming convention and content format.
 12. Staff scheduling supports date-specific availability and vehicle assignment.
