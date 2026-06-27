@@ -4,10 +4,8 @@ import { revalidatePath } from "next/cache";
 import { writeRouteAuditEvent } from "@/app/lib/routes/audit";
 import { materializeAttendanceForDate } from "@/app/lib/routes/materialize-attendance";
 import { generateRoutes } from "@/app/lib/routes/optimizer";
+import { computeRouteLegDistances, getDistanceWithCache } from "@/app/lib/routes/refresh-distances";
 import type { VehicleRoute } from "@/app/lib/routes/types";
-import { createDistanceService } from "@/app/lib/services/distance";
-import { buildCacheKey } from "@/app/lib/services/distance/cache";
-import * as distanceCacheDb from "@/app/lib/supabase/distance-cache";
 import * as routeStopsDb from "@/app/lib/supabase/route-stops";
 import * as routesDb from "@/app/lib/supabase/routes";
 import { createClient } from "@/app/lib/supabase/server";
@@ -34,46 +32,6 @@ function parseCoordinate(value: unknown): number | null {
 		return Number.isFinite(parsed) ? parsed : null;
 	}
 	return null;
-}
-
-async function getDistanceWithCache(
-	supabase: SupabaseClient,
-	from: { lat: number; lng: number },
-	to: { lat: number; lng: number },
-) {
-	const key = buildCacheKey("google_maps", from, to, "driving");
-	const cached = await distanceCacheDb.getCachedDistance(
-		supabase,
-		key.provider,
-		key.originLatLng,
-		key.destinationLatLng,
-		key.travelMode,
-	);
-
-	if (cached) {
-		return {
-			km: Number(cached.distance_km),
-			minutes: Number(cached.duration_min),
-		};
-	}
-
-	const result = await createDistanceService().distance(from, to);
-	if (!result) return null;
-
-	try {
-		await distanceCacheDb.setCachedDistance(supabase, {
-			provider: key.provider,
-			origin_lat_lng: key.originLatLng,
-			destination_lat_lng: key.destinationLatLng,
-			travel_mode: key.travelMode,
-			distance_km: result.km,
-			duration_min: result.minutes,
-		});
-	} catch {
-		// Cache writes are best-effort because RLS may reserve them for service-role flows.
-	}
-
-	return result;
 }
 
 async function getDistanceWithoutThrow(
@@ -148,49 +106,29 @@ async function enrichRouteDistances(
 ) {
 	if (!process.env.GOOGLE_MAPS_API_KEY) return;
 
+	const coordsMap = new Map(
+		[...schoolCoordinates.entries()].map(([id, c]) => [
+			id,
+			c.lat !== null && c.lng !== null ? { lat: c.lat, lng: c.lng } : null,
+		]),
+	);
+
 	for (const route of routes) {
-		let previousPoint = origin;
-		let totalDistanceKm = 0;
-		const seenSchools = new Set<string>();
+		const { legs, totalKm } = await computeRouteLegDistances(
+			route.stops.map((s) => ({ id: s.id, schoolId: s.schoolId })),
+			coordsMap,
+			origin,
+			(from, to) => getDistanceWithCache(supabase, from, to),
+		);
 
-		for (const stop of route.stops) {
-			if (seenSchools.has(stop.schoolId)) {
-				stop.distanceFromPrevKm = null;
-				stop.durationFromPrevMin = null;
-				continue;
+		for (const leg of legs) {
+			const stop = route.stops.find((s) => s.id === leg.id);
+			if (stop) {
+				stop.distanceFromPrevKm = leg.km;
+				stop.durationFromPrevMin = leg.minutes;
 			}
-
-			seenSchools.add(stop.schoolId);
-			const coords = schoolCoordinates.get(stop.schoolId);
-			const currentPoint =
-				coords && coords.lat !== null && coords.lng !== null
-					? { lat: coords.lat, lng: coords.lng }
-					: null;
-
-			if (!currentPoint) {
-				stop.distanceFromPrevKm = null;
-				stop.durationFromPrevMin = null;
-				continue;
-			}
-
-			if (previousPoint) {
-				try {
-					const distance = await getDistanceWithCache(supabase, previousPoint, currentPoint);
-					if (distance) {
-						stop.distanceFromPrevKm = distance.km;
-						stop.durationFromPrevMin = distance.minutes;
-						totalDistanceKm += distance.km;
-					}
-				} catch {
-					stop.distanceFromPrevKm = null;
-					stop.durationFromPrevMin = null;
-				}
-			}
-
-			previousPoint = currentPoint;
 		}
-
-		route.totalDistanceKm = totalDistanceKm > 0 ? Math.round(totalDistanceKm * 100) / 100 : null;
+		route.totalDistanceKm = totalKm;
 	}
 }
 
