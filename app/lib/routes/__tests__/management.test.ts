@@ -9,6 +9,7 @@ import {
 } from "../../schemas/route-management-schemas";
 import {
 	buildReadinessInput,
+	buildRouteManagementView,
 	dateToWeekday,
 	isRoutablePlanStudent,
 	nextAvailableSeat,
@@ -161,6 +162,67 @@ describe("route management helpers", () => {
 			allRoutableStudentIds: [student().student_id],
 		});
 		expect(input.routes).toBe(routes);
+	});
+});
+
+describe("route management view model", () => {
+	it("builds vehicle routes, unrouted students, and readiness from persisted plan rows", () => {
+		const view = buildRouteManagementView({
+			date: "2026-07-06",
+			plan: { id: "plan-1", status: "draft" },
+			routes: [{ ...route, vehicle_id: "vehicle-1" }],
+			stops: [stop({ student_id: "student-assigned", route_id: route.id })],
+			students: [
+				{
+					...student(),
+					student_id: "student-assigned",
+					attendance_status: "P",
+					drop_off_only: false,
+					school_id: "school-1",
+				},
+				{
+					...student(),
+					student_id: "student-unrouted",
+					student_name_snapshot: "Unrouted Student",
+					attendance_status: "P",
+					drop_off_only: false,
+					needs_booster: true,
+					school_id: "school-1",
+					school_name_snapshot: "School One",
+				},
+				{
+					...student(),
+					student_id: "student-absent",
+					attendance_status: "A",
+					drop_off_only: false,
+				},
+			],
+			vehicles: [{ id: "vehicle-1", kids_seats: 2, booster_seats: 1 }],
+			assignments: [
+				{
+					vehicle_id: "vehicle-1",
+					role: "driver",
+					asp_staff: { name: "Assigned Driver" },
+				},
+			],
+		});
+
+		expect(view.routes).toHaveLength(1);
+		expect(view.routes[0]).toMatchObject({
+			driverName: "Assigned Driver",
+			kidsSeats: 2,
+			boosterSeats: 1,
+			assignedCount: 1,
+		});
+		expect(view.unroutedStudents).toEqual([
+			{
+				id: "student-unrouted",
+				name: "Unrouted Student",
+				schoolName: "School One",
+				needsBooster: true,
+			},
+		]);
+		expect(view.readiness.warningCount).toBeGreaterThan(0);
 	});
 });
 
