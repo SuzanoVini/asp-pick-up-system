@@ -93,5 +93,8 @@ describe("exportRoutePdf", () => {
 		);
 		expect(markRouteExported).toHaveBeenCalledWith(client, "route-1", "owner-1");
 		expect(revalidatePath).toHaveBeenCalledWith("/route-management");
+		expect(revalidatePath).toHaveBeenCalledWith("/route-management?date=2026-07-06");
+		expect(revalidatePath).toHaveBeenCalledWith("/route-history");
+		expect(revalidatePath).not.toHaveBeenCalledWith("/routes");
 	});
 });

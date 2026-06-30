@@ -6,7 +6,8 @@ import { getPlanForDate } from "../lib/supabase/route-plans";
 import { getStopsForPlan } from "../lib/supabase/route-stops";
 import { getRoutesForPlan } from "../lib/supabase/routes";
 import { createClient } from "../lib/supabase/server";
-import { getAssignmentsForDate } from "../lib/supabase/staff-schedule";
+import { getAvailableStaffAndAssignmentsForDate } from "../lib/supabase/staff-schedule";
+import { getActiveVehicles } from "../lib/supabase/vehicles";
 
 export function resolveRouteManagementDate(date: string | undefined, now = new Date()) {
 	const parsed = isoDateSchema.safeParse(date);
@@ -20,16 +21,15 @@ export async function loadRouteManagementPageData(searchDate: string | undefined
 	requireOwner(user);
 
 	const plan = await getPlanForDate(supabase, date);
-	const [routes, stops, students, assignments, vehiclesResult] = plan
+	const [routes, stops, students, vehicles, schedule] = plan
 		? await Promise.all([
 				getRoutesForPlan(supabase, plan.id),
 				getStopsForPlan(supabase, plan.id),
 				getPlanStudents(supabase, plan.id),
-				getAssignmentsForDate(supabase, date),
-				supabase.from("asp_vehicles").select("id, kids_seats, booster_seats"),
+				getActiveVehicles(supabase),
+				getAvailableStaffAndAssignmentsForDate(supabase, date),
 			])
-		: [[], [], [], [], { data: [], error: null }];
-	if (vehiclesResult.error) throw vehiclesResult.error;
+		: [[], [], [], [], { staff: [], assignments: [] }];
 
 	return {
 		date,
@@ -40,8 +40,16 @@ export async function loadRouteManagementPageData(searchDate: string | undefined
 			routes: routes ?? [],
 			stops: stops ?? [],
 			students: students ?? [],
-			assignments: assignments ?? [],
-			vehicles: vehiclesResult.data ?? [],
+			assignments: schedule.assignments ?? [],
+			vehicles: vehicles ?? [],
 		}),
+		editor: {
+			routes: routes ?? [],
+			stops: stops ?? [],
+			students: students ?? [],
+			vehicles: vehicles ?? [],
+			staff: schedule.staff ?? [],
+			assignments: schedule.assignments ?? [],
+		},
 	};
 }

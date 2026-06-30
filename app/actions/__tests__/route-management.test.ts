@@ -6,6 +6,7 @@ import {
 	assignSchoolGroup,
 	assignStudent,
 	createOrRefreshRoutePlan,
+	finalizeRoutePlan,
 	moveStudentStop,
 	removeRouteTable,
 	removeStudentStop,
@@ -27,6 +28,7 @@ jest.mock("../../lib/security/authorization", () => ({
 	requireOwner: jest.fn(),
 }));
 jest.mock("../../lib/supabase/route-plans", () => ({
+	finalizePlan: jest.fn(),
 	getPlanById: jest.fn(),
 	getPlanForDate: jest.fn(),
 	replacePlanSnapshot: jest.fn(),
@@ -52,13 +54,17 @@ jest.mock("../../lib/supabase/routes", () => ({
 }));
 jest.mock("../../lib/supabase/staff", () => ({ getStaffById: jest.fn() }));
 jest.mock("../../lib/supabase/staff-schedule", () => ({
+	getAssignmentsForDate: jest.fn(),
 	getAvailabilityForDate: jest.fn(),
 	removeAssignmentForVehicleDateRole: jest.fn(),
 	upsertAssignmentForVehicleDate: jest.fn(),
 }));
 jest.mock("../../lib/supabase/server", () => ({ createClient: jest.fn() }));
 jest.mock("../../lib/supabase/settings", () => ({ getSystemSettings: jest.fn() }));
-jest.mock("../../lib/supabase/vehicles", () => ({ getVehicleById: jest.fn() }));
+jest.mock("../../lib/supabase/vehicles", () => ({
+	getActiveVehicles: jest.fn(),
+	getVehicleById: jest.fn(),
+}));
 
 const { materializeAttendanceForDate } = jest.requireMock(
 	"../../lib/routes/materialize-attendance",
@@ -69,9 +75,14 @@ const { refreshRouteDistances } = jest.requireMock("../../lib/routes/refresh-dis
 const { getAuthorizedUser, requireOwner } = jest.requireMock(
 	"../../lib/security/authorization",
 ) as { getAuthorizedUser: jest.Mock; requireOwner: jest.Mock };
-const { getPlanById, getPlanForDate, replacePlanSnapshot } = jest.requireMock(
+const { finalizePlan, getPlanById, getPlanForDate, replacePlanSnapshot } = jest.requireMock(
 	"../../lib/supabase/route-plans",
-) as { getPlanById: jest.Mock; getPlanForDate: jest.Mock; replacePlanSnapshot: jest.Mock };
+) as {
+	finalizePlan: jest.Mock;
+	getPlanById: jest.Mock;
+	getPlanForDate: jest.Mock;
+	replacePlanSnapshot: jest.Mock;
+};
 const { getPlanStudents } = jest.requireMock("../../lib/supabase/route-plan-students") as {
 	getPlanStudents: jest.Mock;
 };
@@ -103,6 +114,7 @@ const { getStaffById } = jest.requireMock("../../lib/supabase/staff") as {
 	getStaffById: jest.Mock;
 };
 const {
+	getAssignmentsForDate,
 	getAvailabilityForDate,
 	removeAssignmentForVehicleDateRole,
 	upsertAssignmentForVehicleDate,
@@ -113,7 +125,8 @@ const { createClient } = jest.requireMock("../../lib/supabase/server") as {
 const { getSystemSettings } = jest.requireMock("../../lib/supabase/settings") as {
 	getSystemSettings: jest.Mock;
 };
-const { getVehicleById } = jest.requireMock("../../lib/supabase/vehicles") as {
+const { getActiveVehicles, getVehicleById } = jest.requireMock("../../lib/supabase/vehicles") as {
+	getActiveVehicles: jest.Mock;
 	getVehicleById: jest.Mock;
 };
 
@@ -522,6 +535,7 @@ describe("guarded manual route editing", () => {
 		});
 		jest.mocked(refreshRouteDistances).mockResolvedValue(undefined);
 		jest.mocked(getVehicleById).mockResolvedValue({ id: vehicleId, is_active: true });
+		jest.mocked(getActiveVehicles).mockResolvedValue([]);
 		jest.mocked(getStaffById).mockResolvedValue({
 			id: staffId,
 			is_active: true,
@@ -754,5 +768,24 @@ describe("guarded manual route editing", () => {
 		await expect(setRouteVehicle({ routeId, vehicleId: null })).rejects.toBe(rpcError);
 		expect(refreshRouteDistances).not.toHaveBeenCalled();
 		expect(revalidatePath).not.toHaveBeenCalled();
+	});
+
+	it("requires current warnings to be acknowledged before finalizing", async () => {
+		jest.mocked(getRoutesForPlan).mockResolvedValue([]);
+		jest.mocked(getStopsForPlan).mockResolvedValue([]);
+		jest.mocked(getPlanStudents).mockResolvedValue([routableStudent]);
+		jest.mocked(getAssignmentsForDate).mockResolvedValue([]);
+
+		await expect(
+			finalizeRoutePlan({ planId, acknowledgedWarnings: [], override: null }),
+		).rejects.toThrow("acknowledged");
+		expect(finalizePlan).not.toHaveBeenCalled();
+
+		await finalizeRoutePlan({
+			planId,
+			acknowledgedWarnings: ["unrouted_students"],
+			override: null,
+		});
+		expect(finalizePlan).toHaveBeenCalledWith(client, planId, ["unrouted_students"], [], null);
 	});
 });

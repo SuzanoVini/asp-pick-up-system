@@ -62,8 +62,9 @@ export async function exportRoutePdf(routeId: string) {
 		performedBy: user.id,
 	});
 
-	revalidatePath("/routes");
 	revalidatePath("/route-management");
+	revalidatePath(`/route-management?date=${route.date}`);
+	revalidatePath("/route-history");
 
 	const filename = buildRoutePdfFilename({
 		driverName: route.driver_name_snapshot,

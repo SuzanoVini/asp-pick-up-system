@@ -2,8 +2,9 @@ import { createOrRefreshRoutePlan } from "../actions/route-management";
 import { isoDateSchema } from "../lib/schemas/route-management-schemas";
 import { ReadinessPanel } from "../routes/readiness-panel";
 import { UnroutedStudents } from "../routes/unrouted-students";
-import { VehicleRouteCard } from "../routes/vehicle-route-card";
+import { FinalizePlanForm } from "./finalize-plan-form";
 import { loadRouteManagementPageData } from "./page-data";
+import { RouteManagementBoard } from "./route-management-board";
 
 interface PageProps {
 	searchParams: Promise<{ date?: string }>;
@@ -11,7 +12,7 @@ interface PageProps {
 
 export default async function RouteManagementPage({ searchParams }: PageProps) {
 	const params = await searchParams;
-	const { date, plan, view } = await loadRouteManagementPageData(params.date);
+	const { date, plan, view, editor } = await loadRouteManagementPageData(params.date);
 
 	async function createPlan(formData: FormData) {
 		"use server";
@@ -71,21 +72,24 @@ export default async function RouteManagementPage({ searchParams }: PageProps) {
 			{plan ? (
 				<div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
 					<div className="space-y-4 lg:col-span-3">
-						{view.routes.length === 0 ? (
-							<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
-								No route lanes yet. Create a lane from the route editing controls in the next step.
-							</div>
-						) : (
-							<div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-								{view.routes.map((route) => (
-									<VehicleRouteCard key={route.id || route.vehicleId} route={route} />
-								))}
-							</div>
-						)}
+						<RouteManagementBoard
+							planId={plan.id}
+							editable={plan.status === "draft"}
+							finalized={plan.status === "finalized"}
+							routes={editor.routes}
+							stops={editor.stops}
+							unroutedStudents={view.unroutedStudents}
+							vehicles={editor.vehicles}
+							staff={editor.staff}
+							assignments={editor.assignments}
+						/>
 					</div>
 					<div className="space-y-4">
 						<UnroutedStudents students={view.unroutedStudents} />
 						<ReadinessPanel result={view.readiness} />
+						{plan.status === "draft" && (
+							<FinalizePlanForm planId={plan.id} readiness={view.readiness} />
+						)}
 					</div>
 				</div>
 			) : (

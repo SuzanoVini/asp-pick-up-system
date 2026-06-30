@@ -154,6 +154,7 @@ export function buildRouteManagementView(input: {
 		.map((student) => ({
 			id: student.student_id,
 			name: student.student_name_snapshot,
+			schoolId: student.school_id as string,
 			schoolName: student.school_name_snapshot,
 			needsBooster: student.needs_booster,
 		}));

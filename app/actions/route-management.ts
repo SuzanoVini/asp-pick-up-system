@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { buildRouteManagementView } from "../lib/routes/management";
 import { materializeAttendanceForDate } from "../lib/routes/materialize-attendance";
 import { refreshRouteDistances } from "../lib/routes/refresh-distances";
 import {
@@ -12,6 +13,8 @@ import {
 	assignStudentSchema,
 	type CreateOrRefreshRoutePlanInput,
 	createOrRefreshRoutePlanSchema,
+	type FinalizeRoutePlanInput,
+	finalizeRoutePlanSchema,
 	type MoveStudentStopInput,
 	moveStudentStopSchema,
 	type RemoveRouteTableInput,
@@ -29,7 +32,12 @@ import {
 } from "../lib/schemas/route-management-schemas";
 import { getAuthorizedUser, requireOwner } from "../lib/security/authorization";
 import { getPlanStudents } from "../lib/supabase/route-plan-students";
-import { getPlanById, getPlanForDate, replacePlanSnapshot } from "../lib/supabase/route-plans";
+import {
+	finalizePlan,
+	getPlanById,
+	getPlanForDate,
+	replacePlanSnapshot,
+} from "../lib/supabase/route-plans";
 import {
 	assignRouteSchoolGroup,
 	assignRouteStudent,
@@ -53,11 +61,12 @@ import { createClient } from "../lib/supabase/server";
 import { getSystemSettings } from "../lib/supabase/settings";
 import { getStaffById } from "../lib/supabase/staff";
 import {
+	getAssignmentsForDate,
 	getAvailabilityForDate,
 	removeAssignmentForVehicleDateRole,
 	upsertAssignmentForVehicleDate,
 } from "../lib/supabase/staff-schedule";
-import { getVehicleById } from "../lib/supabase/vehicles";
+import { getActiveVehicles, getVehicleById } from "../lib/supabase/vehicles";
 
 type OwnerContext = { supabase: Awaited<ReturnType<typeof createClient>> };
 type EditableRoute = RouteWithPlanRow & { plan_id: string };
@@ -330,5 +339,55 @@ export async function updateStopResponsibleStaff(input: UpdateStopResponsibleSta
 	if (staffId) await validateAvailableStaff(supabase, staffId, route.date);
 	const result = await setRouteStopResponsibleStaff(supabase, stopId, staffId);
 	revalidateRouteManagement(route.date);
+	return result;
+}
+
+export async function finalizeRoutePlan(input: FinalizeRoutePlanInput) {
+	const parsed = finalizeRoutePlanSchema.parse(input);
+	const supabase = await createClient();
+	await authorizeOwner(supabase);
+	const plan = await getPlanById(supabase, parsed.planId);
+	if (plan.status !== "draft") throw new Error("Route plan is not editable");
+
+	const [routes, stops, students, vehicles, assignments] = await Promise.all([
+		getRoutesForPlan(supabase, plan.id),
+		getStopsForPlan(supabase, plan.id),
+		getPlanStudents(supabase, plan.id),
+		getActiveVehicles(supabase),
+		getAssignmentsForDate(supabase, plan.plan_date),
+	]);
+	const readiness = buildRouteManagementView({
+		date: plan.plan_date,
+		plan,
+		routes: routes ?? [],
+		stops: stops ?? [],
+		students: students ?? [],
+		vehicles: vehicles ?? [],
+		assignments: assignments ?? [],
+	}).readiness;
+	const warnings = readiness.checks
+		.filter((check) => !check.passed && check.severity === "warning")
+		.map((check) => check.name);
+	const blockers = readiness.checks
+		.filter((check) => !check.passed && check.severity === "blocker")
+		.map((check) => check.name);
+	if (warnings.some((name) => !parsed.acknowledgedWarnings.includes(name))) {
+		throw new Error("All current warnings must be acknowledged");
+	}
+	if (
+		blockers.length !== (parsed.override?.checkNames.length ?? 0) ||
+		blockers.some((name) => !parsed.override?.checkNames.includes(name))
+	) {
+		throw new Error("All current blockers require an explicit override");
+	}
+
+	const result = await finalizePlan(
+		supabase,
+		plan.id,
+		warnings,
+		blockers,
+		parsed.override?.reason ?? null,
+	);
+	revalidateRouteManagement(plan.plan_date);
 	return result;
 }

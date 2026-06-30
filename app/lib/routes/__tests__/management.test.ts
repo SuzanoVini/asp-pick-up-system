@@ -218,6 +218,7 @@ describe("route management view model", () => {
 			{
 				id: "student-unrouted",
 				name: "Unrouted Student",
+				schoolId: "school-1",
 				schoolName: "School One",
 				needsBooster: true,
 			},
