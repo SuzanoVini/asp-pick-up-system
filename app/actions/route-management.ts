@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { materializeAttendanceForDate } from "../lib/routes/materialize-attendance";
+import { refreshRouteDistances } from "../lib/routes/refresh-distances";
 import {
 	type AddRouteTableInput,
 	type AssignSchoolGroupInput,
@@ -49,6 +50,7 @@ import {
 	setRouteVehicle as setRouteVehicleRpc,
 } from "../lib/supabase/routes";
 import { createClient } from "../lib/supabase/server";
+import { getSystemSettings } from "../lib/supabase/settings";
 import { getStaffById } from "../lib/supabase/staff";
 import {
 	getAvailabilityForDate,
@@ -86,6 +88,23 @@ async function authorizeOwner(
 function revalidateRouteManagement(date: string) {
 	revalidatePath("/route-management");
 	revalidatePath(`/route-management?date=${date}`);
+}
+
+async function getRouteOrigin(supabase: Awaited<ReturnType<typeof createClient>>) {
+	const settings = await getSystemSettings(supabase);
+	return settings.routeOriginLat !== null && settings.routeOriginLng !== null
+		? { lat: settings.routeOriginLat, lng: settings.routeOriginLng }
+		: null;
+}
+
+async function refreshAffectedRoutes(
+	supabase: Awaited<ReturnType<typeof createClient>>,
+	routeIds: readonly string[],
+) {
+	const origin = await getRouteOrigin(supabase);
+	for (const routeId of new Set(routeIds)) {
+		await refreshRouteDistances(supabase, routeId, origin);
+	}
 }
 
 async function validateAvailableStaff(
@@ -234,6 +253,7 @@ export async function assignStudent(input: AssignStudentInput) {
 		await validateAvailableStaff(supabase, responsibleStaffId, route.date);
 	}
 	const result = await assignRouteStudent(supabase, routeId, studentId, responsibleStaffId);
+	await refreshAffectedRoutes(supabase, [routeId]);
 	revalidateRouteManagement(route.date);
 	return result;
 }
@@ -252,6 +272,7 @@ export async function assignSchoolGroup(input: AssignSchoolGroupInput) {
 	);
 	if (!hasStudents) throw new Error("School has no unassigned routable students");
 	const result = await assignRouteSchoolGroup(supabase, routeId, schoolId);
+	await refreshAffectedRoutes(supabase, [routeId]);
 	revalidateRouteManagement(route.date);
 	return result;
 }
@@ -263,6 +284,7 @@ export async function removeStudentStop(input: RemoveStudentStopInput) {
 	const stop = await getStopById(supabase, stopId);
 	const route = await getEditableRoute(supabase, stop.route_id, ownerContext);
 	const result = await removeRouteStop(supabase, stopId);
+	await refreshAffectedRoutes(supabase, [route.id]);
 	revalidateRouteManagement(route.date);
 	return result;
 }
@@ -276,6 +298,7 @@ export async function moveStudentStop(input: MoveStudentStopInput) {
 	const target = await getEditableRoute(supabase, targetRouteId, ownerContext);
 	if (source.plan_id !== target.plan_id) throw new Error("Routes must belong to the same plan");
 	const result = await moveRouteStop(supabase, stopId, targetRouteId);
+	await refreshAffectedRoutes(supabase, [source.id, target.id]);
 	revalidateRouteManagement(source.date);
 	return result;
 }
@@ -293,6 +316,7 @@ export async function reorderRouteStops(input: ReorderRouteStopsInput) {
 		throw new Error("Reorder must include every current route stop exactly once");
 	}
 	const result = await reorderRouteStopsRpc(supabase, routeId, orderedStopIds);
+	await refreshAffectedRoutes(supabase, [routeId]);
 	revalidateRouteManagement(route.date);
 	return result;
 }

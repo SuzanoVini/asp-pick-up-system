@@ -19,6 +19,9 @@ jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("../../lib/routes/materialize-attendance", () => ({
 	materializeAttendanceForDate: jest.fn(),
 }));
+jest.mock("../../lib/routes/refresh-distances", () => ({
+	refreshRouteDistances: jest.fn(),
+}));
 jest.mock("../../lib/security/authorization", () => ({
 	getAuthorizedUser: jest.fn(),
 	requireOwner: jest.fn(),
@@ -54,11 +57,15 @@ jest.mock("../../lib/supabase/staff-schedule", () => ({
 	upsertAssignmentForVehicleDate: jest.fn(),
 }));
 jest.mock("../../lib/supabase/server", () => ({ createClient: jest.fn() }));
+jest.mock("../../lib/supabase/settings", () => ({ getSystemSettings: jest.fn() }));
 jest.mock("../../lib/supabase/vehicles", () => ({ getVehicleById: jest.fn() }));
 
 const { materializeAttendanceForDate } = jest.requireMock(
 	"../../lib/routes/materialize-attendance",
 ) as { materializeAttendanceForDate: jest.Mock };
+const { refreshRouteDistances } = jest.requireMock("../../lib/routes/refresh-distances") as {
+	refreshRouteDistances: jest.Mock;
+};
 const { getAuthorizedUser, requireOwner } = jest.requireMock(
 	"../../lib/security/authorization",
 ) as { getAuthorizedUser: jest.Mock; requireOwner: jest.Mock };
@@ -102,6 +109,9 @@ const {
 } = jest.requireMock("../../lib/supabase/staff-schedule") as Record<string, jest.Mock>;
 const { createClient } = jest.requireMock("../../lib/supabase/server") as {
 	createClient: jest.Mock;
+};
+const { getSystemSettings } = jest.requireMock("../../lib/supabase/settings") as {
+	getSystemSettings: jest.Mock;
 };
 const { getVehicleById } = jest.requireMock("../../lib/supabase/vehicles") as {
 	getVehicleById: jest.Mock;
@@ -316,7 +326,16 @@ describe("createOrRefreshRoutePlan", () => {
 });
 
 describe("attendance synchronization RPCs", () => {
-	beforeEach(() => jest.clearAllMocks());
+	beforeEach(() => {
+		jest.clearAllMocks();
+		jest.mocked(getSystemSettings).mockResolvedValue({
+			defaultDismissalTime: "15:00",
+			defaultEarlyDismissalTime: "14:00",
+			timezone: "America/Vancouver",
+			routeOriginLat: null,
+			routeOriginLng: null,
+		});
+	});
 
 	it("persists all computed candidate rows in one synchronization RPC", async () => {
 		const { materializeAttendanceForDate: actualMaterialize } = jest.requireActual<
@@ -497,6 +516,11 @@ describe("guarded manual route editing", () => {
 		jest.mocked(getStopsForRoute).mockResolvedValue([]);
 		jest.mocked(getStopsForPlan).mockResolvedValue([]);
 		jest.mocked(getPlanStudents).mockResolvedValue([routableStudent]);
+		jest.mocked(getSystemSettings).mockResolvedValue({
+			routeOriginLat: 49.1,
+			routeOriginLng: -123.1,
+		});
+		jest.mocked(refreshRouteDistances).mockResolvedValue(undefined);
 		jest.mocked(getVehicleById).mockResolvedValue({ id: vehicleId, is_active: true });
 		jest.mocked(getStaffById).mockResolvedValue({
 			id: staffId,
@@ -601,6 +625,10 @@ describe("guarded manual route editing", () => {
 		await assignStudent({ routeId, studentId, responsibleStaffId: staffId });
 
 		expect(assignRouteStudent).toHaveBeenCalledWith(client, routeId, studentId, staffId);
+		expect(refreshRouteDistances).toHaveBeenCalledWith(client, routeId, {
+			lat: 49.1,
+			lng: -123.1,
+		});
 	});
 
 	it("assigns an available school group with one RPC", async () => {
@@ -609,6 +637,10 @@ describe("guarded manual route editing", () => {
 		expect(assignRouteSchoolGroup).toHaveBeenCalledTimes(1);
 		expect(assignRouteSchoolGroup).toHaveBeenCalledWith(client, routeId, schoolId);
 		expect(assignRouteStudent).not.toHaveBeenCalled();
+		expect(refreshRouteDistances).toHaveBeenCalledWith(client, routeId, {
+			lat: 49.1,
+			lng: -123.1,
+		});
 	});
 
 	it("guards a stop source before removing it", async () => {
@@ -617,6 +649,10 @@ describe("guarded manual route editing", () => {
 		expect(getStopById).toHaveBeenCalledWith(client, stopId);
 		expect(getRouteWithPlan).toHaveBeenCalledWith(client, routeId);
 		expect(removeRouteStop).toHaveBeenCalledWith(client, stopId);
+		expect(refreshRouteDistances).toHaveBeenCalledWith(client, routeId, {
+			lat: 49.1,
+			lng: -123.1,
+		});
 	});
 
 	it.each([
@@ -653,6 +689,14 @@ describe("guarded manual route editing", () => {
 		expect(getAuthorizedUser).toHaveBeenCalledTimes(1);
 		expect(requireOwner).toHaveBeenCalledTimes(1);
 		expect(moveRouteStop).toHaveBeenCalledWith(client, stopId, targetRouteId);
+		expect(refreshRouteDistances).toHaveBeenCalledWith(client, routeId, {
+			lat: 49.1,
+			lng: -123.1,
+		});
+		expect(refreshRouteDistances).toHaveBeenCalledWith(client, targetRouteId, {
+			lat: 49.1,
+			lng: -123.1,
+		});
 	});
 
 	it("delegates a full unique reorder to one RPC", async () => {
@@ -661,6 +705,10 @@ describe("guarded manual route editing", () => {
 		await reorderRouteStops({ routeId, orderedStopIds });
 
 		expect(reorderRouteStopsRpc).toHaveBeenCalledWith(client, routeId, orderedStopIds);
+		expect(refreshRouteDistances).toHaveBeenCalledWith(client, routeId, {
+			lat: 49.1,
+			lng: -123.1,
+		});
 	});
 
 	it("rejects a partial stop reorder before RPC delegation", async () => {
@@ -704,6 +752,7 @@ describe("guarded manual route editing", () => {
 		jest.mocked(setRouteVehicleRpc).mockRejectedValue(rpcError);
 
 		await expect(setRouteVehicle({ routeId, vehicleId: null })).rejects.toBe(rpcError);
+		expect(refreshRouteDistances).not.toHaveBeenCalled();
 		expect(revalidatePath).not.toHaveBeenCalled();
 	});
 });

@@ -1,18 +1,19 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/app/lib/supabase/server";
-import * as routesDb from "@/app/lib/supabase/routes";
-import * as routeStopsDb from "@/app/lib/supabase/route-stops";
-import { buildRoutePdf, buildRoutePdfFilename } from "@/app/lib/services/pdf/route-pdf";
-import { writeRouteAuditEvent } from "@/app/lib/routes/audit";
-import { validateReadiness } from "@/app/lib/routes/readiness";
-import type { RouteStop, VehicleRoute } from "@/app/lib/routes/types";
 import { format } from "date-fns";
+import { revalidatePath } from "next/cache";
+import { writeRouteAuditEvent } from "../lib/routes/audit";
+import type { RouteStop } from "../lib/routes/types";
+import { buildRoutePdf, buildRoutePdfFilename } from "../lib/services/pdf/route-pdf";
+import * as routeStopsDb from "../lib/supabase/route-stops";
+import * as routesDb from "../lib/supabase/routes";
+import { createClient } from "../lib/supabase/server";
 
 export async function exportRoutePdf(routeId: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 	if (!user) throw new Error("Not authenticated");
 
 	const route = await routesDb.getRouteById(supabase, routeId);
@@ -32,6 +33,8 @@ export async function exportRoutePdf(routeId: string) {
 		schoolNameSnapshot: s.school_name_snapshot,
 		schoolAddressSnapshot: s.school_address_snapshot,
 		dismissalTimeSnapshot: s.dismissal_time_snapshot,
+		responsibleStaffId: s.responsible_staff_id,
+		responsibleStaffNameSnapshot: s.responsible_staff_name_snapshot,
 	}));
 
 	const date = new Date(`${route.date}T00:00:00`);
@@ -39,6 +42,8 @@ export async function exportRoutePdf(routeId: string) {
 
 	const pdfBuffer = await buildRoutePdf({
 		vehicleName: route.vehicle_name_snapshot,
+		plateNumber: route.plate_number_snapshot,
+		runNumber: route.run_number,
 		driverName: route.driver_name_snapshot,
 		helperName: route.helper_name_snapshot,
 		date: route.date,
@@ -65,6 +70,7 @@ export async function exportRoutePdf(routeId: string) {
 		vehicleName: route.vehicle_name_snapshot,
 		date: route.date,
 		dayOfWeek,
+		runNumber: route.run_number,
 	});
 
 	return {
