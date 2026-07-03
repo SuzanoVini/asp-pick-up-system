@@ -18,10 +18,10 @@ No application API changes, new dependencies, drag-and-drop behavior, or unrelat
 
 ## Security and Transactions
 
-- Functions use `SECURITY INVOKER`; existing owner RLS remains the authorization boundary.
+- Functions use `SECURITY DEFINER` with a fixed `search_path`, explicit owner/staff role checks, and revoked anonymous execution. This lets each trusted transaction write its required append-only audit event without granting clients direct audit-table access.
 - Mutating functions verify draft/finalized/completed state in SQL so direct RPC callers cannot bypass application guards.
 - Multi-row synchronization, replacement, group assignment, reorder, and finalization run atomically in their function transaction.
-- Grants are limited to `authenticated`; no anonymous execution.
+- Grants are limited to `authenticated`; no anonymous execution. Route mutations require owner. Attendance materialization and manual overrides allow owner or staff.
 - Finalization snapshots vehicle, plate, driver, helper, and responsible staff names before marking the plan finalized.
 
 ## Data Behavior

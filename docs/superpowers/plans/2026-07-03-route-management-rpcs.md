@@ -4,7 +4,7 @@
 
 **Goal:** Make every attendance and route-management RPC called by the application available from a clean migrated Supabase database.
 
-**Architecture:** Add one ordered PL/pgSQL migration containing the exact 16 RPC contracts already exposed by TypeScript query helpers. Keep authorization in existing RLS with `SECURITY INVOKER`, add SQL state guards for direct callers, and validate source-to-migration parity with a Jest filesystem contract test.
+**Architecture:** Add one ordered PL/pgSQL migration containing the exact 16 RPC contracts already exposed by TypeScript query helpers. Use trusted `SECURITY DEFINER` transactions with explicit role checks and fixed search paths, add SQL state guards for direct callers, and validate source-to-migration parity with a Jest filesystem contract test.
 
 **Tech Stack:** PostgreSQL/PL/pgSQL, Supabase migrations/RLS, Jest, TypeScript.
 
@@ -26,7 +26,7 @@
 
 - [ ] Add `persist_materialized_attendance_and_sync_plan` and `save_attendance_override_and_sync_plan` with atomic attendance upserts, manual-override preservation, and existing-draft-plan synchronization.
 - [ ] Add `replace_route_plan_snapshot`, `finalize_route_plan`, and `reopen_route_plan` with summary count calculation, state validation, route/staff snapshot freezing, and audit records for finalization overrides/reopen reasons.
-- [ ] Use `SECURITY INVOKER`, fixed `search_path = public`, authenticated-only grants, and `auth.uid()` for actor fields.
+- [ ] Use `SECURITY DEFINER`, fixed `search_path = public`, explicit owner/staff checks, authenticated-only grants, and `auth.uid()` for actor fields.
 - [ ] Run the contract test and confirm only lane/stop/staff RPCs remain missing.
 
 ### Task 3: Lane, stop, and staff RPCs
