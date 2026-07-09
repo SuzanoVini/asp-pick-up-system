@@ -4,9 +4,17 @@ import { getSupabaseConfig } from "./env";
 
 export async function updateSession(request: NextRequest) {
 	let supabaseResponse = NextResponse.next({ request });
-	const { url, anonKey } = getSupabaseConfig();
+	let config: ReturnType<typeof getSupabaseConfig>;
+	try {
+		config = getSupabaseConfig();
+	} catch (error) {
+		if (error instanceof Error && error.message.startsWith("Missing required environment variable:")) {
+			return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+		}
+		throw error;
+	}
 
-	const supabase = createServerClient(url, anonKey, {
+	const supabase = createServerClient(config.url, config.anonKey, {
 		cookies: {
 			getAll() {
 				return request.cookies.getAll();
