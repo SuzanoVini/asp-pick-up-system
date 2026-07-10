@@ -9,6 +9,9 @@ jest.mock("../../lib/supabase/route-plans", () => ({ getPlanForDate: jest.fn() }
 jest.mock("../../lib/supabase/route-plan-students", () => ({ getPlanStudents: jest.fn() }));
 jest.mock("../../lib/supabase/route-stops", () => ({ getStopsForPlan: jest.fn() }));
 jest.mock("../../lib/supabase/routes", () => ({ getRoutesForPlan: jest.fn() }));
+jest.mock("../../lib/supabase/settings", () => ({
+	getSystemSettings: jest.fn().mockResolvedValue({ timezone: "America/Vancouver" }),
+}));
 jest.mock("../../lib/supabase/vehicles", () => ({ getActiveVehicles: jest.fn() }));
 jest.mock("../../lib/supabase/staff-schedule", () => ({
 	getAvailableStaffAndAssignmentsForDate: jest.fn(),

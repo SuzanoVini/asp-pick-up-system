@@ -14,7 +14,8 @@ function getRuleVisualStatus(
 	isActive: boolean,
 ): RuleVisualStatus {
 	if (!isActive) return "inactive";
-	const today = new Date().toISOString().split("T")[0];
+	// Browser-local calendar day; toISOString() would roll to tomorrow after 4pm Pacific.
+	const today = new Intl.DateTimeFormat("en-CA").format(new Date());
 	if (endDate < today) return "expired";
 	if (startDate > today) return "upcoming";
 	return "active";

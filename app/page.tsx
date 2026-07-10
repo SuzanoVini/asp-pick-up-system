@@ -14,6 +14,7 @@ import type {
 } from "@/app/lib/engine/types";
 import { createClient } from "@/app/lib/supabase/server";
 import { getSystemSettings } from "@/app/lib/supabase/settings";
+import { todayInTimeZone } from "@/app/lib/utils/dates";
 
 interface PageProps {
 	searchParams: Promise<{ date?: string }>;
@@ -71,10 +72,10 @@ function toEngineSchool(row: Record<string, unknown>): School {
 
 export default async function DashboardPage({ searchParams }: PageProps) {
 	const params = await searchParams;
-	const dateStr = params.date ?? new Date().toISOString().split("T")[0];
-	const date = new Date(`${dateStr}T00:00:00`);
-
 	const supabase = await createClient();
+	const settings = await getSystemSettings(supabase);
+	const dateStr = params.date ?? todayInTimeZone(settings.timezone);
+	const date = new Date(`${dateStr}T00:00:00`);
 
 	const [
 		{ data: studentsRaw },
@@ -93,8 +94,6 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 			.eq("date", dateStr)
 			.eq("is_manual_override", true),
 	]);
-
-	const settings = await getSystemSettings(supabase);
 
 	const students = (studentsRaw ?? []).map(toEngineStudent);
 	const enrollments = (enrollmentsRaw ?? []).map(toEngineEnrollment);

@@ -6,19 +6,22 @@ import { getPlanForDate } from "../lib/supabase/route-plans";
 import { getStopsForPlan } from "../lib/supabase/route-stops";
 import { getRoutesForPlan } from "../lib/supabase/routes";
 import { createClient } from "../lib/supabase/server";
+import { getSystemSettings } from "../lib/supabase/settings";
 import { getAvailableStaffAndAssignmentsForDate } from "../lib/supabase/staff-schedule";
 import { getActiveVehicles } from "../lib/supabase/vehicles";
+import { todayInTimeZone } from "../lib/utils/dates";
 
-export function resolveRouteManagementDate(date: string | undefined, now = new Date()) {
+export function resolveRouteManagementDate(date: string | undefined, today: string) {
 	const parsed = isoDateSchema.safeParse(date);
-	return parsed.success ? parsed.data : now.toISOString().slice(0, 10);
+	return parsed.success ? parsed.data : today;
 }
 
 export async function loadRouteManagementPageData(searchDate: string | undefined) {
-	const date = resolveRouteManagementDate(searchDate);
 	const supabase = await createClient();
 	const user = await getAuthorizedUser(supabase);
 	requireOwner(user);
+	const settings = await getSystemSettings(supabase);
+	const date = resolveRouteManagementDate(searchDate, todayInTimeZone(settings.timezone));
 
 	const plan = await getPlanForDate(supabase, date);
 	const [routes, stops, students, vehicles, schedule] = plan
