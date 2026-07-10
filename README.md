@@ -13,14 +13,12 @@ Built as a standalone operational tool that can later integrate into a larger ad
 | Database | Supabase (PostgreSQL) with Row-Level Security |
 | Auth | Supabase Auth (owner/staff roles) |
 | Styling | Tailwind CSS v4 |
-| Client State | Zustand |
 | Validation | Zod |
 | Date Handling | date-fns |
 | Icons | lucide-react |
-| CSV Import/Export | papaparse |
+| PDF Export | pdfkit |
 | Lint/Format | Biome |
-| Unit Tests | Jest + React Testing Library |
-| E2E Tests | Playwright |
+| Tests | Jest (unit + embedded-PostgreSQL migration tests via PGlite) |
 
 ## Prerequisites
 
@@ -72,10 +70,10 @@ npm run dev
 |----------|----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public API key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-side only) |
 | `GOOGLE_MAPS_API_KEY` | No | Google Maps API key for school address geocoding, driving-distance route ordering, route leg duration, and route total distance |
 | `NEXT_PUBLIC_APP_NAME` | No | Application display name (default: ASP Manager) |
-| `NEXT_PUBLIC_TIMEZONE` | No | Operational timezone (default: America/Vancouver) |
+
+The app never uses the Supabase service role key: every query runs in the signed-in user's context and is enforced by Row-Level Security and `SECURITY DEFINER` RPCs with in-database authorization checks. The operational timezone is configured on the Settings page (stored in the database), not via environment variable.
 
 ## Development Commands
 
@@ -84,7 +82,8 @@ npm run dev
 | `npm run dev` | Start development server with Turbopack |
 | `npm run build` | Create production build |
 | `npm start` | Start production server |
-| `npx @biomejs/biome check .` | Run Biome linter and formatter checks |
+| `npm test` | Run the Jest suite (unit + embedded-PostgreSQL migration tests) |
+| `npm run lint` | Run Biome linter and formatter checks |
 | `npx @biomejs/biome check --write .` | Auto-fix lint and format issues |
 
 ## Project Structure
@@ -100,24 +99,24 @@ app/
   enrollments/            Enrollment lifecycle
   calendar-rules/         Attendance rule management
   attendance/             Daily attendance preview and overrides
-  kids-and-schools/       Daily operational grouping view
-  routes/                 Manual route builder and PDF export
+  route-management/       Daily route board: lanes, vehicles, staff, stops, finalization
+  route-history/          Persisted route plan snapshots and PDF re-export
   vehicles/               Vehicle fleet management
   staff/                  Staff management
   staff-schedule/         Weekly availability and assignment
   waitlist/               Pre-enrollment waitlist (owner only)
   former-students/        Archived student records
-  audit/                  Audit log viewer (owner only)
   components/
     layout/               Sidebar, Header, Logo
     ui/                   Shared UI components
-    providers/            Auth and theme providers
   lib/
-    supabase/             Database client and types
+    supabase/             Database query helpers and RPC wrappers
     engine/               Rule engine (pure functions)
+    routes/               Route board view building and readiness checks
     schemas/              Shared Zod validation schemas
-    services/             Geocoding, route optimization, PDF
-    utils/                Date and timezone helpers
+    security/             Authorization helpers
+    services/             Geocoding, distance, PDF
+    utils/                Date helpers
   actions/                Server actions (mutations)
 docs/
   SRS.md                  Software Requirements Specification
@@ -133,11 +132,11 @@ supabase/
 
 - **Calendar Rule Engine** -- Nine rule types that automatically compute daily attendance from enrollment contracts. Supports district breaks, school holidays, early dismissals, student absences, alternating week schedules, temporary day switches, and extra pickup days.
 
-- **Kids and Schools View** -- Daily operational view grouping students by school, with sections for present, drop-off only, absent, and not-scheduled students.
+- **Daily Attendance View** -- Per-date list of every enrolled student with computed status (present, early dismissal, absent, drop-off only), applied rules, conflicts, and manual overrides.
 
-- **Route Builder** -- Spreadsheet-style daily route workflow: generate the pickup list, manually assign students/schools to vehicles, choose drivers/helpers, arrange stop order, validate capacity/readiness, and export final per-vehicle PDFs. Automatic ordering is a suggestion layer, not the source of truth.
+- **Route Management Board** -- Spreadsheet-style daily route workflow: materialize the pickup list into a persisted plan, add route lanes, assign vehicles and qualified drivers/helpers, assign students individually or by school group, arrange stop order, and finalize behind readiness checks (capacity, booster seats, staffing, unassigned students).
 
-- **Route History** -- Persisted per-date route snapshots designed to show what was actually created: vehicle, staff, ordered students, schools, addresses, dismissal times, booster needs, and export details.
+- **Route History** -- Persisted per-date route plan snapshots showing what was actually finalized: vehicle, staff, ordered students, schools, addresses, dismissal times, booster needs, and export timestamps, with per-route PDF re-export.
 
 - **PDF Export** -- Per-vehicle route PDFs with driver, student, school, address, dismissal time, and booster indicators.
 
