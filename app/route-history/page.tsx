@@ -1,387 +1,223 @@
-import {
-	AlertTriangle,
-	CalendarDays,
-	Car,
-	CheckCircle2,
-	Download,
-	FileText,
-	MapPin,
-	Route,
-	User,
-	Users,
-} from "lucide-react";
+import { format } from "date-fns";
+import { CheckCircle2, MapPin } from "lucide-react";
+import Link from "next/link";
+import type { ManagedRouteRow, ManagedStopRow } from "../lib/routes/management-types";
+import { isoDateSchema } from "../lib/schemas/route-management-schemas";
+import { getAuthorizedUser, requireOwner } from "../lib/security/authorization";
+import { getHistoryPlans, getPlanForDate } from "../lib/supabase/route-plans";
+import { getStopsForPlan } from "../lib/supabase/route-stops";
+import { getRoutesForPlan } from "../lib/supabase/routes";
+import { createClient } from "../lib/supabase/server";
+import { RouteExportButton } from "../route-management/route-export-button";
 
-const workflowSteps = [
-	{ label: "Rules", status: "done" },
-	{ label: "Attendance", status: "done" },
-	{ label: "Pickup List", status: "done" },
-	{ label: "Route Board", status: "active" },
-	{ label: "Export", status: "pending" },
-	{ label: "History", status: "pending" },
-];
+interface PageProps {
+	searchParams: Promise<{ date?: string }>;
+}
 
-const pickupPool = [
-	{ name: "Maya Chen", school: "Maple Ridge Elementary", time: "3:00 PM", booster: true },
-	{ name: "Noah Patel", school: "Maple Ridge Elementary", time: "3:00 PM", booster: false },
-	{ name: "Emma Silva", school: "Cedar Grove School", time: "3:15 PM", booster: true },
-	{ name: "Lucas Brown", school: "Cedar Grove School", time: "3:15 PM", booster: false },
-];
+function formatTimestamp(value: string | null): string | null {
+	return value ? format(new Date(value), "MMM d, yyyy h:mm a") : null;
+}
 
-const vehicleRoutes = [
-	{
-		name: "Van 1",
-		driver: "Vinicius Gomes",
-		helper: "Amanda Lee",
-		seats: "4/12",
-		boosters: "2/5",
-		distance: "8.6 km",
-		stops: [
-			{
-				order: 1,
-				type: "driver",
-				name: "Vinicius Gomes",
-				school: "Start / staff pickup",
-				time: "2:30 PM",
-			},
-			{
-				order: 2,
-				type: "school",
-				name: "Maya Chen",
-				school: "Maple Ridge Elementary",
-				time: "3:00 PM",
-			},
-			{
-				order: 3,
-				type: "school",
-				name: "Noah Patel",
-				school: "Maple Ridge Elementary",
-				time: "3:00 PM",
-			},
-			{
-				order: 4,
-				type: "school",
-				name: "Emma Silva",
-				school: "Cedar Grove School",
-				time: "3:15 PM",
-			},
-			{
-				order: 5,
-				type: "school",
-				name: "Lucas Brown",
-				school: "Cedar Grove School",
-				time: "3:15 PM",
-			},
-		],
-	},
-	{
-		name: "Van 2",
-		driver: "Chris Morgan",
-		helper: "Sofia Ramos",
-		seats: "3/8",
-		boosters: "1/5",
-		distance: "6.2 km",
-		stops: [
-			{
-				order: 1,
-				type: "driver",
-				name: "Chris Morgan",
-				school: "Start / staff pickup",
-				time: "2:35 PM",
-			},
-			{
-				order: 2,
-				type: "school",
-				name: "Liam Walker",
-				school: "Northview Academy",
-				time: "3:05 PM",
-			},
-			{
-				order: 3,
-				type: "school",
-				name: "Sofia Martins",
-				school: "Northview Academy",
-				time: "3:05 PM",
-			},
-			{ order: 4, type: "school", name: "Aiden Kim", school: "Brookside School", time: "3:20 PM" },
-		],
-	},
-];
-
-const historyRoutes = [
-	{
-		name: "Van 1",
-		status: "exported",
-		created: "Jun 26, 2026 1:42 PM",
-		exported: "Jun 26, 2026 2:18 PM",
-		driver: "Vinicius Gomes",
-		helper: "Amanda Lee",
-		vehicle: "Van 1 - ABC-1234",
-		stops: vehicleRoutes[0].stops,
-	},
-	{
-		name: "Van 2",
-		status: "exported",
-		created: "Jun 26, 2026 1:46 PM",
-		exported: "Jun 26, 2026 2:20 PM",
-		driver: "Chris Morgan",
-		helper: "Sofia Ramos",
-		vehicle: "Van 2 - DEF-5678",
-		stops: vehicleRoutes[1].stops,
-	},
-];
-
-export default function RouteHistoryPreviewPage() {
+function RouteCard({ route, stops }: { route: ManagedRouteRow; stops: ManagedStopRow[] }) {
+	const exportedAt = formatTimestamp(route.exported_at);
 	return (
-		<div className="space-y-6">
-			<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-				<div>
-					<p className="text-sm font-medium text-gray-500">Local workflow preview</p>
-					<h1 className="text-2xl font-bold text-gray-950">Route Builder And History</h1>
-				</div>
-				<div className="flex flex-wrap items-center gap-2">
-					<input
-						type="date"
-						defaultValue="2026-06-26"
-						className="h-9 rounded-md border border-gray-300 px-3 text-sm"
-					/>
-					<button
-						type="button"
-						className="inline-flex h-9 items-center gap-2 rounded-md bg-[var(--color-primary)] px-3 text-sm font-medium text-white"
-					>
-						<CalendarDays size={16} />
-						View Date
-					</button>
-				</div>
-			</div>
-
-			<section className="rounded-lg border border-gray-200 bg-white p-4">
-				<div className="grid gap-2 md:grid-cols-6">
-					{workflowSteps.map((step) => (
-						<div
-							key={step.label}
-							className={`rounded-md border px-3 py-2 text-sm ${
-								step.status === "active"
-									? "border-indigo-300 bg-indigo-50 text-indigo-800"
-									: step.status === "done"
-										? "border-green-200 bg-green-50 text-green-800"
-										: "border-gray-200 bg-gray-50 text-gray-500"
-							}`}
-						>
-							<div className="flex items-center justify-between gap-2">
-								<span className="font-medium">{step.label}</span>
-								{step.status === "done" ? <CheckCircle2 size={15} /> : null}
-							</div>
-						</div>
-					))}
-				</div>
-			</section>
-
-			<section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_280px]">
-				<div className="rounded-lg border border-gray-200 bg-white">
-					<div className="border-b border-gray-100 px-4 py-3">
-						<div className="flex items-center gap-2">
-							<Users size={16} className="text-gray-600" />
-							<h2 className="font-semibold text-gray-950">Pickup List</h2>
-						</div>
-					</div>
-					<div className="divide-y divide-gray-100">
-						{pickupPool.map((student) => (
-							<div key={student.name} className="px-4 py-3">
-								<div className="flex items-start justify-between gap-3">
-									<div>
-										<p className="text-sm font-medium text-gray-950">{student.name}</p>
-										<p className="mt-0.5 text-xs text-gray-500">{student.school}</p>
-									</div>
-									<span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-										{student.time}
-									</span>
-								</div>
-								{student.booster ? (
-									<p className="mt-2 text-xs font-medium text-amber-700">Booster needed</p>
-								) : null}
-							</div>
-						))}
-					</div>
-				</div>
-
-				<div className="grid gap-4 lg:grid-cols-2">
-					{vehicleRoutes.map((route) => (
-						<div key={route.name} className="rounded-lg border border-gray-200 bg-white">
-							<div className="border-b border-gray-100 px-4 py-3">
-								<div className="flex items-center justify-between gap-3">
-									<div className="flex items-center gap-2">
-										<Car size={16} className="text-gray-600" />
-										<h2 className="font-semibold text-gray-950">{route.name}</h2>
-									</div>
-									<span className="rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
-										{route.seats} seats
-									</span>
-								</div>
-								<div className="mt-2 grid gap-2 text-xs text-gray-600 sm:grid-cols-2">
-									<span className="flex items-center gap-1">
-										<User size={13} /> {route.driver}
-									</span>
-									<span>{route.helper}</span>
-									<span>{route.boosters} boosters</span>
-									<span>{route.distance}</span>
-								</div>
-							</div>
-							<div className="divide-y divide-gray-100">
-								{route.stops.map((stop) => (
-									<div key={`${route.name}-${stop.order}`} className="flex gap-3 px-4 py-3">
-										<div
-											className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-												stop.type === "driver"
-													? "bg-indigo-100 text-indigo-700"
-													: "bg-gray-100 text-gray-700"
-											}`}
-										>
-											{stop.order}
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-medium text-gray-950">{stop.name}</p>
-											<p className="mt-0.5 truncate text-xs text-gray-500">{stop.school}</p>
-										</div>
-										<span className="text-xs text-gray-500">{stop.time}</span>
-									</div>
-								))}
-							</div>
-						</div>
-					))}
-				</div>
-
-				<div className="space-y-4">
-					<div className="rounded-lg border border-gray-200 bg-white p-4">
-						<div className="flex items-center gap-2">
-							<CheckCircle2 size={16} className="text-green-600" />
-							<h2 className="font-semibold text-gray-950">Readiness</h2>
-						</div>
-						<div className="mt-4 space-y-2 text-sm">
-							<p className="flex items-center justify-between">
-								<span>All students assigned</span>
-								<span className="font-medium text-green-700">Pass</span>
-							</p>
-							<p className="flex items-center justify-between">
-								<span>Drivers selected</span>
-								<span className="font-medium text-green-700">Pass</span>
-							</p>
-							<p className="flex items-center justify-between">
-								<span>Helpers selected</span>
-								<span className="font-medium text-green-700">Pass</span>
-							</p>
-							<p className="flex items-center justify-between">
-								<span>Capacity</span>
-								<span className="font-medium text-green-700">Pass</span>
-							</p>
-							<p className="flex items-center justify-between">
-								<span>Address warnings</span>
-								<span className="font-medium text-amber-700">1 warning</span>
-							</p>
-						</div>
-					</div>
-
-					<div className="rounded-lg border border-gray-200 bg-white p-4">
-						<div className="flex items-center gap-2">
-							<FileText size={16} className="text-gray-600" />
-							<h2 className="font-semibold text-gray-950">Final Route</h2>
-						</div>
-						<div className="mt-4 space-y-2">
-							<button
-								type="button"
-								className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-gray-900 px-3 text-sm font-medium text-white"
-							>
-								<Download size={16} />
-								Export PDFs
-							</button>
-							<button
-								type="button"
-								className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-3 text-sm font-medium text-gray-700"
-							>
-								<Route size={16} />
-								Finalize Routes
-							</button>
-						</div>
-					</div>
-				</div>
-			</section>
-
-			<section className="rounded-lg border border-gray-200 bg-white">
-				<div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+		<div className="rounded-lg border border-gray-200">
+			<div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+				<div className="flex items-center justify-between gap-3">
 					<div>
-						<h2 className="font-semibold text-gray-950">Route History Snapshot</h2>
-						<p className="text-sm text-gray-500">Friday, June 26, 2026</p>
-					</div>
-					<div className="flex flex-wrap gap-2 text-xs">
-						<span className="rounded bg-green-50 px-2 py-1 font-medium text-green-700">
-							2 exported routes
-						</span>
-						<span className="rounded bg-gray-100 px-2 py-1 font-medium text-gray-600">
-							7 students
-						</span>
-						<span className="rounded bg-gray-100 px-2 py-1 font-medium text-gray-600">14.8 km</span>
-					</div>
-				</div>
-
-				<div className="grid gap-4 p-4 xl:grid-cols-2">
-					{historyRoutes.map((route) => (
-						<div key={route.name} className="rounded-lg border border-gray-200">
-							<div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-								<div className="flex items-center justify-between gap-3">
-									<div>
-										<h3 className="font-semibold text-gray-950">{route.vehicle}</h3>
-										<p className="mt-1 text-xs text-gray-500">
-											Created {route.created} · Exported {route.exported}
-										</p>
-									</div>
-									<span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-										{route.status}
-									</span>
-								</div>
-								<div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
-									<span>Driver: {route.driver}</span>
-									<span>Helper: {route.helper}</span>
-								</div>
-							</div>
-							<div className="divide-y divide-gray-100">
-								{route.stops.map((stop) => (
-									<div
-										key={`${route.name}-history-${stop.order}`}
-										className="grid gap-2 px-4 py-3 md:grid-cols-[40px_1fr_auto]"
-									>
-										<div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700">
-											{stop.order}
-										</div>
-										<div className="min-w-0">
-											<p className="text-sm font-medium text-gray-950">{stop.name}</p>
-											<p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-												<MapPin size={12} />
-												{stop.school}
-											</p>
-										</div>
-										<div className="text-left text-xs text-gray-500 md:text-right">
-											<p>{stop.time}</p>
-											{stop.type === "driver" ? <p>first stop</p> : null}
-										</div>
-									</div>
-								))}
-							</div>
-						</div>
-					))}
-				</div>
-			</section>
-
-			<section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-				<div className="flex gap-3">
-					<AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-700" />
-					<div>
-						<h2 className="font-semibold text-amber-900">Preview data</h2>
-						<p className="mt-1 text-sm text-amber-800">
-							This localhost screen uses static sample data to preview the planned route-board and
-							route-history experience.
+						<h3 className="font-semibold text-gray-950">
+							{route.vehicle_name_snapshot ?? "Unassigned vehicle"}
+							{route.plate_number_snapshot ? ` - ${route.plate_number_snapshot}` : ""}
+							{route.run_number > 1 ? ` - Run ${route.run_number}` : ""}
+						</h3>
+						<p className="mt-1 text-xs text-gray-500">
+							{exportedAt ? `Exported ${exportedAt}` : "Not exported"}
+							{route.total_distance_km !== null ? ` · ${route.total_distance_km} km` : ""}
 						</p>
 					</div>
+					<div className="flex items-center gap-2">
+						<span
+							className={`rounded px-2 py-0.5 text-xs font-medium ${
+								route.status === "completed"
+									? "bg-green-100 text-green-700"
+									: "bg-gray-100 text-gray-600"
+							}`}
+						>
+							{route.status}
+						</span>
+						<RouteExportButton routeId={route.id} />
+					</div>
 				</div>
-			</section>
+				<div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
+					<span>Driver: {route.driver_name_snapshot ?? "Unassigned"}</span>
+					<span>Helper: {route.helper_name_snapshot ?? "None"}</span>
+				</div>
+			</div>
+			<div className="divide-y divide-gray-100">
+				{stops.length === 0 && (
+					<p className="px-4 py-3 text-sm text-gray-500">No stops on this route.</p>
+				)}
+				{stops.map((stop, index) => (
+					<div key={stop.id} className="grid gap-2 px-4 py-3 md:grid-cols-[40px_1fr_auto]">
+						<div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700">
+							{index + 1}
+						</div>
+						<div className="min-w-0">
+							<p className="text-sm font-medium text-gray-950">
+								{stop.student_name_snapshot}
+								{stop.needs_booster ? (
+									<span className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+										Booster
+									</span>
+								) : null}
+							</p>
+							<p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+								<MapPin size={12} />
+								{stop.school_name_snapshot}
+								{stop.school_address_snapshot ? ` · ${stop.school_address_snapshot}` : ""}
+							</p>
+							{stop.responsible_staff_name_snapshot ? (
+								<p className="mt-0.5 text-xs text-gray-500">
+									Responsible: {stop.responsible_staff_name_snapshot}
+								</p>
+							) : null}
+						</div>
+						<div className="text-left text-xs text-gray-500 md:text-right">
+							{stop.dismissal_time_snapshot ? <p>{stop.dismissal_time_snapshot}</p> : null}
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+export default async function RouteHistoryPage({ searchParams }: PageProps) {
+	const params = await searchParams;
+	const supabase = await createClient();
+	const user = await getAuthorizedUser(supabase);
+	requireOwner(user);
+
+	const requestedDate = isoDateSchema.safeParse(params.date);
+	const recentPlans = await getHistoryPlans(supabase, { limit: 30 });
+	const selectedDate = requestedDate.success
+		? requestedDate.data
+		: (recentPlans[0]?.plan_date ?? null);
+	const plan = requestedDate.success
+		? await getPlanForDate(supabase, requestedDate.data)
+		: (recentPlans[0] ?? null);
+
+	const [routes, stops] = plan
+		? await Promise.all([getRoutesForPlan(supabase, plan.id), getStopsForPlan(supabase, plan.id)])
+		: [[], []];
+	const stopsByRoute = new Map<string, ManagedStopRow[]>();
+	for (const stop of stops ?? []) {
+		const routeStops = stopsByRoute.get(stop.route_id) ?? [];
+		routeStops.push(stop);
+		stopsByRoute.set(stop.route_id, routeStops);
+	}
+	const finalizedAt = plan ? formatTimestamp(plan.finalized_at) : null;
+
+	return (
+		<div className="space-y-6">
+			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+				<div>
+					<h1 className="text-2xl font-bold text-gray-900">Route History</h1>
+					<p className="text-sm text-gray-500">
+						Persisted route plans as they were finalized and exported.
+					</p>
+				</div>
+				<form className="flex items-center gap-2">
+					<input
+						type="date"
+						name="date"
+						defaultValue={selectedDate ?? undefined}
+						className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+					/>
+					<button
+						type="submit"
+						className="rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+					>
+						View
+					</button>
+				</form>
+			</div>
+
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+				<div className="space-y-4 lg:col-span-3">
+					{plan ? (
+						<>
+							<div className="rounded-lg border border-gray-200 bg-white p-4">
+								<div className="flex flex-wrap items-center justify-between gap-3">
+									<div>
+										<p className="font-semibold text-gray-950">
+											{format(new Date(`${plan.plan_date}T00:00:00`), "EEEE, MMMM d, yyyy")}
+										</p>
+										<p className="mt-1 text-xs text-gray-500">
+											{plan.status === "finalized" && finalizedAt
+												? `Finalized ${finalizedAt}`
+												: "Draft plan (not finalized)"}
+										</p>
+									</div>
+									<div className="flex flex-wrap gap-2 text-xs">
+										<span className="rounded bg-gray-100 px-2 py-1 font-medium text-gray-600">
+											{plan.routable_count} routable
+										</span>
+										<span className="rounded bg-gray-100 px-2 py-1 font-medium text-gray-600">
+											{plan.drop_off_count} drop-off
+										</span>
+										<span className="rounded bg-gray-100 px-2 py-1 font-medium text-gray-600">
+											{plan.absent_count} absent
+										</span>
+										<span className="rounded bg-gray-100 px-2 py-1 font-medium text-gray-600">
+											{plan.school_count} school(s)
+										</span>
+									</div>
+								</div>
+							</div>
+							{(routes ?? []).map((route) => (
+								<RouteCard key={route.id} route={route} stops={stopsByRoute.get(route.id) ?? []} />
+							))}
+							{(routes ?? []).length === 0 && (
+								<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+									This plan has no route lanes.
+								</div>
+							)}
+						</>
+					) : (
+						<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+							{requestedDate.success
+								? `No route plan exists for ${requestedDate.data}.`
+								: "No finalized route plans yet. Finalize a plan in Route Management to see it here."}
+						</div>
+					)}
+				</div>
+
+				<div>
+					<div className="rounded-lg border border-gray-200 bg-white">
+						<div className="border-b border-gray-100 px-4 py-3">
+							<h2 className="font-semibold text-gray-950">Finalized Plans</h2>
+						</div>
+						<div className="divide-y divide-gray-100">
+							{recentPlans.length === 0 && (
+								<p className="px-4 py-3 text-sm text-gray-500">Nothing finalized yet.</p>
+							)}
+							{recentPlans.map((recent) => (
+								<Link
+									key={recent.id}
+									href={`/route-history?date=${recent.plan_date}`}
+									className={`flex items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-gray-50 ${
+										recent.plan_date === selectedDate ? "bg-gray-50 font-medium" : ""
+									}`}
+								>
+									<span>{format(new Date(`${recent.plan_date}T00:00:00`), "MMM d, yyyy")}</span>
+									<CheckCircle2 size={15} className="text-green-600" />
+								</Link>
+							))}
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 	);
 }
