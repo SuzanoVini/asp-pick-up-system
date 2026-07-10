@@ -13,6 +13,10 @@ jest.mock("../../lib/services/pdf/route-pdf", () => ({
 	buildRoutePdfFilename: jest.fn().mockReturnValue("route.pdf"),
 }));
 jest.mock("../../lib/routes/audit", () => ({ writeRouteAuditEvent: jest.fn() }));
+jest.mock("../../lib/security/authorization", () => ({
+	getAuthorizedUser: jest.fn(),
+	requireOwner: jest.fn(),
+}));
 
 const { createClient } = jest.requireMock("../../lib/supabase/server") as {
 	createClient: jest.Mock;
@@ -31,16 +35,17 @@ const { buildRoutePdf, buildRoutePdfFilename } = jest.requireMock(
 	buildRoutePdfFilename: jest.Mock;
 };
 
+const { getAuthorizedUser } = jest.requireMock("../../lib/security/authorization") as {
+	getAuthorizedUser: jest.Mock;
+};
+
 describe("exportRoutePdf", () => {
-	const client = {
-		auth: {
-			getUser: jest.fn().mockResolvedValue({ data: { user: { id: "owner-1" } } }),
-		},
-	};
+	const client = {};
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		jest.mocked(createClient).mockResolvedValue(client);
+		jest.mocked(getAuthorizedUser).mockResolvedValue({ id: "owner-1", role: "owner" });
 		jest.mocked(getRouteById).mockResolvedValue({
 			id: "route-1",
 			date: "2026-07-06",

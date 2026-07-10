@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
 import { writeRouteAuditEvent } from "../lib/routes/audit";
 import type { RouteStop } from "../lib/routes/types";
+import { getAuthorizedUser, requireOwner } from "../lib/security/authorization";
 import { buildRoutePdf, buildRoutePdfFilename } from "../lib/services/pdf/route-pdf";
 import * as routeStopsDb from "../lib/supabase/route-stops";
 import * as routesDb from "../lib/supabase/routes";
@@ -11,10 +12,8 @@ import { createClient } from "../lib/supabase/server";
 
 export async function exportRoutePdf(routeId: string) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-	if (!user) throw new Error("Not authenticated");
+	const user = await getAuthorizedUser(supabase);
+	requireOwner(user);
 
 	const route = await routesDb.getRouteById(supabase, routeId);
 	const stopsRaw = await routeStopsDb.getStopsForRoute(supabase, routeId);
