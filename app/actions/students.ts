@@ -31,19 +31,3 @@ export async function updateStudentAction(id: string, formData: Record<string, u
 	revalidatePath(`/students/${id}`);
 	return { data };
 }
-
-export async function changeStudentStatusAction(id: string, status: string) {
-	const supabase = await createClient();
-	const data = await studentsDb.updateStudent(supabase, id, { status });
-
-	revalidatePath("/students");
-	revalidatePath("/former-students");
-	return { data };
-}
-
-export async function deleteStudentAction(id: string) {
-	const supabase = await createClient();
-	await studentsDb.deleteStudent(supabase, id);
-
-	revalidatePath("/students");
-}
