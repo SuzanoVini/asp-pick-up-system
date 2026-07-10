@@ -73,8 +73,7 @@ function checkOverCapacity(routes: VehicleRoute[]): ReadinessCheck {
 				? "All vehicles within capacity"
 				: over
 						.map(
-							(r) =>
-								`${r.vehicleName}: ${r.assignedCount} students but only ${r.kidsSeats} seats`,
+							(r) => `${r.vehicleName}: ${r.assignedCount} students but only ${r.kidsSeats} seats`,
 						)
 						.join("; "),
 	};
@@ -99,9 +98,7 @@ function checkBoosterShortage(routes: VehicleRoute[]): ReadinessCheck {
 }
 
 function checkMissingAddress(routes: VehicleRoute[]): ReadinessCheck {
-	const missing = routes.flatMap((r) =>
-		r.stops.filter((s) => !s.schoolAddressSnapshot),
-	);
+	const missing = routes.flatMap((r) => r.stops.filter((s) => !s.schoolAddressSnapshot));
 	return {
 		name: "missing_address",
 		severity: "warning",

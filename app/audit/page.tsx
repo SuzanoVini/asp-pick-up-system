@@ -110,15 +110,17 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
 			</form>
 
 			<AuditLogTable
-				events={(events ?? []) as Array<{
-					id: string;
-					entity_type: string;
-					entity_id: string;
-					action: string;
-					changes: Record<string, unknown> | null;
-					performed_by: string;
-					performed_at: string;
-				}>}
+				events={
+					(events ?? []) as Array<{
+						id: string;
+						entity_type: string;
+						entity_id: string;
+						action: string;
+						changes: Record<string, unknown> | null;
+						performed_by: string;
+						performed_at: string;
+					}>
+				}
 				totalCount={count ?? 0}
 			/>
 		</div>

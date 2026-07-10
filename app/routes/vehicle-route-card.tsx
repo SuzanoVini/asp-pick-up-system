@@ -1,6 +1,6 @@
 "use client";
 
-import { Car, User, HardHat } from "lucide-react";
+import { Car, HardHat, User } from "lucide-react";
 import type { VehicleRoute } from "@/app/lib/routes/types";
 import { RouteStopCard } from "./route-stop-card";
 
@@ -29,18 +29,14 @@ export function VehicleRouteCard({ route }: VehicleRouteCardProps) {
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
 						<Car size={16} className="text-gray-600" />
-						<span className="font-semibold text-gray-900">
-							{route.vehicleName}
-						</span>
+						<span className="font-semibold text-gray-900">{route.vehicleName}</span>
 						<span
 							className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusColors[route.status] ?? ""}`}
 						>
 							{route.status}
 						</span>
 					</div>
-					<span
-						className={`rounded px-2 py-0.5 text-xs font-medium ${capacityClass}`}
-					>
+					<span className={`rounded px-2 py-0.5 text-xs font-medium ${capacityClass}`}>
 						{route.assignedCount}/{route.kidsSeats} seats
 					</span>
 				</div>
@@ -57,11 +53,7 @@ export function VehicleRouteCard({ route }: VehicleRouteCardProps) {
 					)}
 					{route.boosterRequiredCount > 0 && (
 						<span
-							className={
-								route.boosterRequiredCount > route.boosterSeats
-									? "text-amber-600"
-									: ""
-							}
+							className={route.boosterRequiredCount > route.boosterSeats ? "text-amber-600" : ""}
 						>
 							Boosters: {route.boosterRequiredCount}/{route.boosterSeats}
 						</span>
@@ -70,13 +62,9 @@ export function VehicleRouteCard({ route }: VehicleRouteCardProps) {
 			</div>
 			<div className="divide-y divide-gray-50">
 				{route.stops.length === 0 ? (
-					<div className="px-4 py-3 text-center text-xs text-gray-400">
-						No students assigned
-					</div>
+					<div className="px-4 py-3 text-center text-xs text-gray-400">No students assigned</div>
 				) : (
-					route.stops.map((stop) => (
-						<RouteStopCard key={stop.id || stop.studentId} stop={stop} />
-					))
+					route.stops.map((stop) => <RouteStopCard key={stop.id || stop.studentId} stop={stop} />)
 				)}
 			</div>
 		</div>

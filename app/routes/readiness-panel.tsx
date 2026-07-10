@@ -27,7 +27,11 @@ export function ReadinessPanel({ result }: ReadinessPanelProps) {
 					<li
 						key={check.name}
 						className={`flex items-start gap-2 text-xs ${
-							check.passed ? "text-gray-500" : check.severity === "blocker" ? "text-red-700" : "text-amber-700"
+							check.passed
+								? "text-gray-500"
+								: check.severity === "blocker"
+									? "text-red-700"
+									: "text-amber-700"
 						}`}
 					>
 						{check.passed ? (

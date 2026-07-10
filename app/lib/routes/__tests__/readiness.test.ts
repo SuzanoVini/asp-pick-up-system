@@ -1,5 +1,5 @@
 import { validateReadiness } from "../readiness";
-import type { VehicleRoute, RouteStop } from "../types";
+import type { RouteStop, VehicleRoute } from "../types";
 
 function makeStop(overrides: Partial<RouteStop> = {}): RouteStop {
 	return {
@@ -134,7 +134,10 @@ describe("validateReadiness", () => {
 		const result = validateReadiness({
 			routes: [
 				makeRoute({ id: "r1", stops: [makeStop({ studentId: "s1" })] }),
-				makeRoute({ id: "r2", stops: [makeStop({ id: "stop-2", studentId: "s1", seatNumber: 1 })] }),
+				makeRoute({
+					id: "r2",
+					stops: [makeStop({ id: "stop-2", studentId: "s1", seatNumber: 1 })],
+				}),
 			],
 			allRoutableStudentIds: ["s1"],
 			date: "2026-10-05",

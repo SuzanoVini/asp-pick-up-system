@@ -8,7 +8,10 @@ export async function updateSession(request: NextRequest) {
 	try {
 		config = getSupabaseConfig();
 	} catch (error) {
-		if (error instanceof Error && error.message.startsWith("Missing required environment variable:")) {
+		if (
+			error instanceof Error &&
+			error.message.startsWith("Missing required environment variable:")
+		) {
 			return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
 		}
 		throw error;

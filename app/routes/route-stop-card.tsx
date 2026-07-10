@@ -1,6 +1,6 @@
 "use client";
 
-import { GripVertical, Clock, MapPin } from "lucide-react";
+import { Clock, GripVertical, MapPin } from "lucide-react";
 import type { RouteStop } from "@/app/lib/routes/types";
 
 interface RouteStopCardProps {
@@ -11,14 +11,9 @@ interface RouteStopCardProps {
 export function RouteStopCard({ stop, isDragging }: RouteStopCardProps) {
 	return (
 		<div
-			className={`flex items-center gap-2 px-4 py-2 ${
-				isDragging ? "opacity-50 bg-blue-50" : ""
-			}`}
+			className={`flex items-center gap-2 px-4 py-2 ${isDragging ? "opacity-50 bg-blue-50" : ""}`}
 		>
-			<GripVertical
-				size={14}
-				className="shrink-0 cursor-grab text-gray-300"
-			/>
+			<GripVertical size={14} className="shrink-0 cursor-grab text-gray-300" />
 			<span className="w-5 shrink-0 text-center text-xs font-medium text-gray-400">
 				{stop.orderIndex}
 			</span>
@@ -44,14 +39,10 @@ export function RouteStopCard({ stop, isDragging }: RouteStopCardProps) {
 							{stop.dismissalTimeSnapshot}
 						</span>
 					)}
-					{stop.distanceFromPrevKm !== null && (
-						<span>{stop.distanceFromPrevKm} km</span>
-					)}
+					{stop.distanceFromPrevKm !== null && <span>{stop.distanceFromPrevKm} km</span>}
 				</div>
 			</div>
-			<span className="shrink-0 text-xs text-gray-400">
-				Seat {stop.seatNumber}
-			</span>
+			<span className="shrink-0 text-xs text-gray-400">Seat {stop.seatNumber}</span>
 		</div>
 	);
 }

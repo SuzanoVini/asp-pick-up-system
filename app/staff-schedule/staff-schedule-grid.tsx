@@ -1,9 +1,9 @@
 "use client";
 
+import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { useState, useTransition } from "react";
-import { format, addDays, startOfWeek, parseISO } from "date-fns";
+import { bulkSetWeek, toggleAvailability } from "@/app/actions/staff-schedule";
 import { WeekControls } from "./week-controls";
-import { toggleAvailability, bulkSetWeek } from "@/app/actions/staff-schedule";
 
 interface StaffMember {
 	id: string;
@@ -34,9 +34,7 @@ interface StaffScheduleGridProps {
 
 function getWeekDates(weekStart: string): string[] {
 	const start = startOfWeek(parseISO(weekStart), { weekStartsOn: 1 });
-	return Array.from({ length: 5 }, (_, i) =>
-		format(addDays(start, i), "yyyy-MM-dd"),
-	);
+	return Array.from({ length: 5 }, (_, i) => format(addDays(start, i), "yyyy-MM-dd"));
 }
 
 export function StaffScheduleGrid({
@@ -92,7 +90,6 @@ export function StaffScheduleGrid({
 	return (
 		<div>
 			<WeekControls
-				weekStart={weekStart}
 				onPrevWeek={handlePrevWeek}
 				onNextWeek={handleNextWeek}
 				onSetWeek={handleSetWeek}
@@ -103,17 +100,10 @@ export function StaffScheduleGrid({
 				<table className="w-full text-sm">
 					<thead>
 						<tr className="border-b border-gray-200 bg-gray-50">
-							<th className="px-3 py-2 text-left font-medium text-gray-700">
-								Staff
-							</th>
-							<th className="px-1 py-2 text-center text-xs font-medium text-gray-500">
-								Role
-							</th>
+							<th className="px-3 py-2 text-left font-medium text-gray-700">Staff</th>
+							<th className="px-1 py-2 text-center text-xs font-medium text-gray-500">Role</th>
 							{dayLabels.map((label, i) => (
-								<th
-									key={weekDates[i]}
-									className="px-2 py-2 text-center font-medium text-gray-700"
-								>
+								<th key={weekDates[i]} className="px-2 py-2 text-center font-medium text-gray-700">
 									{label}
 								</th>
 							))}
@@ -122,9 +112,7 @@ export function StaffScheduleGrid({
 					<tbody>
 						{activeStaff.map((s) => (
 							<tr key={s.id} className="border-b border-gray-100">
-								<td className="px-3 py-2 font-medium text-gray-900">
-									{s.name}
-								</td>
+								<td className="px-3 py-2 font-medium text-gray-900">{s.name}</td>
 								<td className="px-1 py-2 text-center text-xs text-gray-500">
 									{s.capabilities.join("/")}
 								</td>

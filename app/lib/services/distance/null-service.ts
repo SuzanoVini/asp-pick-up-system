@@ -9,10 +9,7 @@ export class NullDistanceService implements GeocodingService {
 		return null;
 	}
 
-	async distanceMatrix(
-		origins: LatLng[],
-		destinations: LatLng[],
-	): Promise<DistanceMatrixEntry[]> {
+	async distanceMatrix(origins: LatLng[], destinations: LatLng[]): Promise<DistanceMatrixEntry[]> {
 		return origins.flatMap((origin) =>
 			destinations.map((destination) => ({
 				origin,

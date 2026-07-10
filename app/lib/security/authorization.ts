@@ -7,9 +7,7 @@ export interface AuthorizedUser {
 	role: UserRole;
 }
 
-export async function getAuthorizedUser(
-	supabase: SupabaseClient,
-): Promise<AuthorizedUser> {
+export async function getAuthorizedUser(supabase: SupabaseClient): Promise<AuthorizedUser> {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();

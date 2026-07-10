@@ -1,22 +1,15 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface WeekControlsProps {
-	weekStart: string;
 	onPrevWeek: () => void;
 	onNextWeek: () => void;
 	onSetWeek: () => void;
 	weekLabel: string;
 }
 
-export function WeekControls({
-	weekStart,
-	onPrevWeek,
-	onNextWeek,
-	onSetWeek,
-	weekLabel,
-}: WeekControlsProps) {
+export function WeekControls({ onPrevWeek, onNextWeek, onSetWeek, weekLabel }: WeekControlsProps) {
 	return (
 		<div className="mb-4 flex items-center justify-between">
 			<div className="flex items-center gap-2">
@@ -27,9 +20,7 @@ export function WeekControls({
 				>
 					<ChevronLeft size={16} />
 				</button>
-				<span className="min-w-[200px] text-center text-sm font-medium">
-					{weekLabel}
-				</span>
+				<span className="min-w-[200px] text-center text-sm font-medium">{weekLabel}</span>
 				<button
 					type="button"
 					onClick={onNextWeek}
