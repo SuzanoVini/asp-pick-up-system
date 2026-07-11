@@ -1,3 +1,4 @@
+import { getAuthorizedUser, requireOwner } from "@/app/lib/security/authorization";
 import { createClient } from "@/app/lib/supabase/server";
 import { AuditLogTable } from "./audit-log-table";
 
@@ -13,6 +14,8 @@ interface PageProps {
 export default async function AuditLogPage({ searchParams }: PageProps) {
 	const params = await searchParams;
 	const supabase = await createClient();
+	const user = await getAuthorizedUser(supabase);
+	requireOwner(user);
 
 	let query = supabase
 		.from("asp_audit_events")

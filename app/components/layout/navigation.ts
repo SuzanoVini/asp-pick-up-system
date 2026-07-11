@@ -1,5 +1,6 @@
 import {
 	Archive,
+	Backpack,
 	CalendarClock,
 	CalendarDays,
 	Car,
@@ -11,6 +12,7 @@ import {
 	ListOrdered,
 	Route,
 	School,
+	ScrollText,
 	Settings,
 	UserCheck,
 	Users,
@@ -24,6 +26,7 @@ export const navItems = [
 	{ href: "/enrollments", label: "Enrollments", icon: FileText },
 	{ href: "/calendar-rules", label: "Calendar Rules", icon: CalendarDays },
 	{ href: "/attendance", label: "Attendance", icon: ClipboardList },
+	{ href: "/kids-and-schools", label: "Kids & Schools", icon: Backpack },
 	{ href: "/route-management", label: "Route Management", icon: Route },
 	{ href: "/route-history", label: "Route History", icon: History },
 	{ href: "/vehicles", label: "Vehicles", icon: Car },
@@ -31,5 +34,6 @@ export const navItems = [
 	{ href: "/staff-schedule", label: "Staff Schedule", icon: CalendarClock },
 	{ href: "/waitlist", label: "Waitlist", icon: ListOrdered },
 	{ href: "/former-students", label: "Former Students", icon: Archive },
+	{ href: "/audit", label: "Audit Log", icon: ScrollText },
 	{ href: "/settings", label: "Settings", icon: Settings },
 ];

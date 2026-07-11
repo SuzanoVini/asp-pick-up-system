@@ -24,12 +24,6 @@ const nextConfig: NextConfig = {
 				destination: "/route-management",
 				permanent: false,
 			},
-			{
-				source: "/kids-and-schools/:path*",
-				destination: "/route-management",
-				permanent: false,
-			},
-			{ source: "/audit", destination: "/", permanent: false },
 		];
 	},
 };

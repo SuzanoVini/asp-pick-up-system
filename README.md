@@ -99,6 +99,7 @@ app/
   enrollments/            Enrollment lifecycle
   calendar-rules/         Attendance rule management
   attendance/             Daily attendance preview and overrides
+  kids-and-schools/       Daily pickup list grouped by school
   route-management/       Daily route board: lanes, vehicles, staff, stops, finalization
   route-history/          Persisted route plan snapshots and PDF re-export
   vehicles/               Vehicle fleet management
@@ -106,6 +107,7 @@ app/
   staff-schedule/         Weekly availability and assignment
   waitlist/               Pre-enrollment waitlist (owner only)
   former-students/        Archived student records
+  audit/                  Audit log viewer (owner only)
   components/
     layout/               Sidebar, Header, Logo
     ui/                   Shared UI components
@@ -134,6 +136,8 @@ supabase/
 
 - **Daily Attendance View** -- Per-date list of every enrolled student with computed status (present, early dismissal, absent, drop-off only), applied rules, conflicts, and manual overrides.
 
+- **Kids and Schools View** -- Daily pickup list grouped by school, with sections for present, drop-off only, absent, and not-scheduled students.
+
 - **Route Management Board** -- Spreadsheet-style daily route workflow: materialize the pickup list into a persisted plan, add route lanes, assign vehicles and qualified drivers/helpers, assign students individually or by school group, arrange stop order, and finalize behind readiness checks (capacity, booster seats, staffing, unassigned students).
 
 - **Route History** -- Persisted per-date route plan snapshots showing what was actually finalized: vehicle, staff, ordered students, schools, addresses, dismissal times, booster needs, and export timestamps, with per-route PDF re-export.
@@ -141,6 +145,8 @@ supabase/
 - **PDF Export** -- Per-vehicle route PDFs with driver, student, school, address, dismissal time, and booster indicators.
 
 - **Staff Scheduling** -- Date-specific staff availability plus manual driver/helper assignment to each vehicle route.
+
+- **Audit Log** -- Owner-only viewer over audit events written by route operations and trusted database RPCs, filterable by entity, action, and date.
 
 - **White-Label Architecture** -- CSS variable theme tokens, replaceable logo slot, and configurable app name. No hardcoded branding.
 
