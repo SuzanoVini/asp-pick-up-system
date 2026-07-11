@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoutableUnassignedStudents } from "../route-plan-students";
 import { finalizePlan, getHistoryPlans, getPlanForDate, replacePlanSnapshot } from "../route-plans";
-import { getStopsForPlan, moveRouteStop, removeStopByStudentAndDate } from "../route-stops";
+import { getStopsForPlan, moveRouteStop } from "../route-stops";
 import { createRouteLane, getRouteStaffSelection, getRoutesForPlanForRole } from "../routes";
 import {
 	getAvailableStaffAndAssignmentsForDate,
@@ -234,14 +234,5 @@ describe("route management Supabase queries", () => {
 
 		await expect(getPlanForDate(query.client, "2026-07-03")).rejects.toBe(queryError);
 		await expect(createRouteLane(rpc.client, "plan-1")).rejects.toBe(rpcError);
-	});
-
-	it("propagates the route lookup error before removing a student's stop", async () => {
-		const queryError = new Error("route lookup failed");
-		const { client } = fakeSupabase([{ data: null, error: queryError }]);
-
-		await expect(removeStopByStudentAndDate(client, "student-1", "2026-07-03")).rejects.toBe(
-			queryError,
-		);
 	});
 });

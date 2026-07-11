@@ -178,13 +178,13 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
 			<div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Link
-					href={`/routes?date=${dateStr}`}
+					href={`/route-management?date=${dateStr}`}
 					className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 transition hover:border-[var(--color-primary)] hover:shadow-sm"
 				>
 					<Route size={24} className="text-[var(--color-primary)]" />
 					<div>
-						<p className="font-medium text-gray-900">Route Planner</p>
-						<p className="text-sm text-gray-500">Generate and edit pickup routes</p>
+						<p className="font-medium text-gray-900">Route Management</p>
+						<p className="text-sm text-gray-500">Build and edit pickup routes</p>
 					</div>
 				</Link>
 				<Link

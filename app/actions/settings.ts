@@ -64,7 +64,7 @@ export async function updateSettingsAction(formData: {
 	await updateSetting(supabase, "route_origin_lng", routeOriginLng);
 
 	revalidatePath("/settings");
-	revalidatePath("/routes");
+	revalidatePath("/route-management");
 	return {
 		success: true,
 		settings: {
