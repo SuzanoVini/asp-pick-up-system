@@ -320,7 +320,7 @@ describe("route management migrations in PostgreSQL", () => {
 		await db.close();
 	});
 
-	it("rejects a seat number that would collide with the internal swap sentinel", async () => {
+	it("rejects a non-positive seat number at the RPC boundary", async () => {
 		const studentFour = "30000000-0000-4000-8000-000000000004";
 		const { db, routeId } = await seedThreeStudentRoute([{ id: studentFour, name: "Student Four" }]);
 
@@ -329,6 +329,74 @@ describe("route management migrations in PostgreSQL", () => {
 			`SELECT public.assign_route_student('${routeId}', '${studentFour}', NULL, -1);`,
 			"Seat number must be a positive integer",
 		);
+		await db.close();
+	});
+
+	it("swaps two stops across lanes when moving onto an occupied target seat", async () => {
+		const studentFive = "30000000-0000-4000-8000-000000000005";
+		// Student Five goes into the helper's single snapshot call — the snapshot
+		// cannot be re-replaced once the first lane exists.
+		const { db, planId, routeId: sourceRouteId, stopIds } = await seedThreeStudentRoute([
+			{ id: studentFive, name: "Student Five" },
+		]);
+
+		// create_route_lane RETURNS the asp_routes composite row — select its .id
+		// field explicitly, or rows[0].id would be the whole serialized tuple.
+		const created = await db.query<{ id: string }>(
+			`SELECT (public.create_route_lane('${planId}')).id AS id`,
+		);
+		const targetRoute = created.rows[0].id;
+		const vehicleTwo = "40000000-0000-4000-8000-000000000002";
+		await db.exec(`
+			INSERT INTO asp_vehicles(id, name, total_seats, kids_seats, booster_seats, license_plate)
+			VALUES ('${vehicleTwo}', 'Van Two', 8, 6, 2, 'TEST-125');
+			SELECT public.set_route_vehicle('${targetRoute}', '${vehicleTwo}');
+			SELECT public.assign_route_student('${targetRoute}', '${studentFive}', NULL);
+		`);
+
+		const movingStopId = stopIds[0];
+		const movingStopBefore = await db.query<{ seat_number: number }>(`SELECT seat_number FROM asp_route_stops WHERE id = '${movingStopId}'`);
+		const sourceSeat = movingStopBefore.rows[0].seat_number;
+		const targetOccupant = await db.query<{ id: string; seat_number: number }>(`SELECT id, seat_number FROM asp_route_stops WHERE route_id = '${targetRoute}' AND student_id = '${studentFive}'`);
+		const targetSeat = targetOccupant.rows[0].seat_number;
+
+		await db.exec(`SELECT public.move_route_stop('${movingStopId}', '${targetRoute}', ${targetSeat});`);
+
+		const moved = await db.query<{ route_id: string; seat_number: number }>(`SELECT route_id, seat_number FROM asp_route_stops WHERE id = '${movingStopId}'`);
+		expect(moved.rows[0]).toEqual({ route_id: targetRoute, seat_number: targetSeat });
+		const swapped = await db.query<{ route_id: string; seat_number: number }>(`SELECT route_id, seat_number FROM asp_route_stops WHERE id = '${targetOccupant.rows[0].id}'`);
+		expect(swapped.rows[0]).toEqual({ route_id: sourceRouteId, seat_number: sourceSeat });
+		await db.close();
+	});
+
+	it("moves a stop onto a specific free seat in another lane", async () => {
+		const { db, planId, routeId: sourceRouteId, stopIds } = await seedThreeStudentRoute();
+
+		const created = await db.query<{ id: string }>(
+			`SELECT (public.create_route_lane('${planId}')).id AS id`,
+		);
+		const targetRoute = created.rows[0].id;
+		const vehicleTwo = "40000000-0000-4000-8000-000000000002";
+		await db.exec(`
+			INSERT INTO asp_vehicles(id, name, total_seats, kids_seats, booster_seats, license_plate)
+			VALUES ('${vehicleTwo}', 'Van Two', 8, 6, 2, 'TEST-125');
+			SELECT public.set_route_vehicle('${targetRoute}', '${vehicleTwo}');
+		`);
+
+		// Target lane is empty; drop into seat 4 specifically (not next-available 1).
+		await db.exec(`SELECT public.move_route_stop('${stopIds[0]}', '${targetRoute}', 4);`);
+
+		const moved = await db.query<{ route_id: string; seat_number: number }>(
+			`SELECT route_id, seat_number FROM asp_route_stops WHERE id = '${stopIds[0]}'`,
+		);
+		expect(moved.rows[0]).toEqual({ route_id: targetRoute, seat_number: 4 });
+
+		// Source lane keeps its remaining seats fixed, with pickup order compacted.
+		const source = await db.query<{ seat_number: number; order_index: number }>(`
+			SELECT seat_number, order_index FROM asp_route_stops WHERE route_id = '${sourceRouteId}' ORDER BY seat_number
+		`);
+		expect(source.rows.map((row) => row.seat_number)).toEqual([2, 3]);
+		expect(source.rows.map((row) => row.order_index)).toEqual([1, 2]);
 		await db.close();
 	});
 });

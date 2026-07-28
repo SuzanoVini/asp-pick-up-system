@@ -99,7 +99,9 @@ DECLARE
   v_bumped_stop_id uuid;
 BEGIN
   PERFORM public.require_rpc_role(false);
-  -- -1 is the internal swap sentinel; direct RPC callers must never claim it.
+  -- Reject non-positive seats at the RPC boundary, matching the seat_number > 0
+  -- CHECK on asp_route_stops, so a direct PostgREST call fails loudly here
+  -- rather than deep inside the INSERT.
   IF p_seat_number IS NOT NULL AND p_seat_number < 1 THEN
     RAISE EXCEPTION 'Seat number must be a positive integer';
   END IF;
@@ -168,3 +170,94 @@ $$;
 
 REVOKE ALL ON FUNCTION public.assign_route_student(uuid, uuid, uuid, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.assign_route_student(uuid, uuid, uuid, integer) TO authenticated;
+
+DROP FUNCTION IF EXISTS public.move_route_stop(uuid, uuid);
+
+CREATE OR REPLACE FUNCTION public.move_route_stop(
+  p_stop_id uuid,
+  p_target_route_id uuid,
+  p_seat_number integer DEFAULT NULL
+)
+RETURNS asp_route_stops
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_stop asp_route_stops%ROWTYPE;
+  v_source asp_routes%ROWTYPE;
+  v_target asp_routes%ROWTYPE;
+  v_source_plan_status text;
+  v_target_plan_status text;
+  v_source_seat integer;
+  v_occupant_id uuid;
+  v_parking_seat integer;
+BEGIN
+  PERFORM public.require_rpc_role(false);
+  IF p_seat_number IS NOT NULL AND p_seat_number < 1 THEN
+    RAISE EXCEPTION 'Seat number must be a positive integer';
+  END IF;
+  SELECT * INTO v_stop FROM asp_route_stops WHERE id = p_stop_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Route stop not found'; END IF;
+  SELECT * INTO v_source FROM asp_routes WHERE id = v_stop.route_id FOR UPDATE;
+  SELECT status INTO v_source_plan_status FROM asp_route_plans WHERE id = v_source.plan_id;
+  SELECT * INTO v_target FROM asp_routes WHERE id = p_target_route_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Target route not found'; END IF;
+  SELECT status INTO v_target_plan_status FROM asp_route_plans WHERE id = v_target.plan_id;
+  IF v_source.plan_id IS DISTINCT FROM v_target.plan_id OR v_source_plan_status <> 'draft' OR v_target_plan_status <> 'draft'
+     OR v_source.status = 'completed' OR v_target.status = 'completed' THEN
+    RAISE EXCEPTION 'Routes must be editable and belong to the same plan';
+  END IF;
+
+  v_source_seat := v_stop.seat_number;
+
+  IF p_seat_number IS NOT NULL THEN
+    SELECT id INTO v_occupant_id FROM asp_route_stops
+    WHERE route_id = v_target.id AND seat_number = p_seat_number AND id <> p_stop_id;
+
+    -- Phase 1: park the moving stop on a temporary seat well above any real
+    -- one, so its old (route_id, seat_number) is free for the swap partner to
+    -- claim. Same positive temp-offset idiom resequence_route_stops_internal
+    -- and reorder_route_stops already use, so the seat_number > 0 CHECK from
+    -- 00022 keeps holding throughout the swap.
+    SELECT COALESCE(MAX(seat_number), 0) + 100 INTO v_parking_seat
+    FROM asp_route_stops WHERE route_id = v_target.id;
+
+    UPDATE asp_route_stops SET route_id = v_target.id, seat_number = v_parking_seat, updated_by = auth.uid()
+    WHERE id = p_stop_id;
+
+    IF v_occupant_id IS NOT NULL THEN
+      -- Phase 2: the prior occupant of the target seat takes the moving
+      -- stop's vacated source seat.
+      UPDATE asp_route_stops SET route_id = v_source.id, seat_number = v_source_seat, updated_by = auth.uid()
+      WHERE id = v_occupant_id;
+    END IF;
+
+    -- Phase 3: the moving stop lands on its requested target seat.
+    UPDATE asp_route_stops SET seat_number = p_seat_number, updated_by = auth.uid()
+    WHERE id = p_stop_id;
+  ELSE
+    UPDATE asp_route_stops SET
+      route_id = v_target.id,
+      seat_number = (SELECT COALESCE(MAX(seat_number), 0) + 1 FROM asp_route_stops WHERE route_id = v_target.id),
+      order_index = (SELECT COALESCE(MAX(order_index), 0) + 1 FROM asp_route_stops WHERE route_id = v_target.id),
+      updated_by = auth.uid()
+    WHERE id = p_stop_id;
+  END IF;
+
+  PERFORM public.resequence_route_stops_internal(v_source.id);
+  -- Always compact the target route too: a seat-targeted move carries the
+  -- stop's old order_index into the target lane, which can duplicate an
+  -- existing order value there (order_index has no unique constraint, but
+  -- duplicates make pickup order ambiguous). Compacting is a no-op when the
+  -- target's order values are already dense.
+  PERFORM public.resequence_route_stops_internal(v_target.id);
+  -- Re-read AFTER compaction so the returned row's order_index is current.
+  SELECT * INTO v_stop FROM asp_route_stops WHERE id = p_stop_id;
+  PERFORM public.write_rpc_audit('route_stop', p_stop_id, 'update', jsonb_build_object('from_route_id', v_source.id, 'to_route_id', v_target.id, 'seat_number', p_seat_number));
+  RETURN v_stop;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.move_route_stop(uuid, uuid, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.move_route_stop(uuid, uuid, integer) TO authenticated;
