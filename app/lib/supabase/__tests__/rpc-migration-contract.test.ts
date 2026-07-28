@@ -36,10 +36,12 @@ describe("Supabase RPC migration contract", () => {
 		const missing: string[] = [];
 
 		for (const [name, parameters] of applicationRpcContracts()) {
-			const declaration = new RegExp(
+			const pattern = new RegExp(
 				`create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?${name}\\s*\\(([^)]*)\\)`,
-				"i",
-			).exec(migrations);
+				"gi",
+			);
+			const matches = [...migrations.matchAll(pattern)];
+			const declaration = matches.at(-1);
 			if (!declaration) {
 				missing.push(name);
 				continue;
