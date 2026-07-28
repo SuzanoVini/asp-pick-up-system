@@ -142,4 +142,77 @@ describe("route management migrations in PostgreSQL", () => {
 		expect(audit.rows[0].count).toBeGreaterThanOrEqual(7);
 		await db.close();
 	});
+
+	it("keeps seat_number stable for remaining stops when a stop is removed", async () => {
+		const db = new PGlite({ extensions: { btree_gist } });
+		await db.exec(`
+			CREATE ROLE anon;
+			CREATE ROLE authenticated;
+			CREATE ROLE service_role;
+			CREATE SCHEMA auth;
+			CREATE TABLE auth.users (id uuid PRIMARY KEY, email text);
+			CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+				SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
+			$$;
+		`);
+		const migrations = join(process.cwd(), "supabase", "migrations");
+		for (const name of readdirSync(migrations)
+			.filter((name) => name.endsWith(".sql"))
+			.sort()) {
+			await db.exec(readFileSync(join(migrations, name), "utf8"));
+		}
+
+		const studentTwo = "30000000-0000-4000-8000-000000000002";
+		const studentThree = "30000000-0000-4000-8000-000000000003";
+		await db.exec(`
+			INSERT INTO auth.users(id, email) VALUES ('${ids.owner}', 'owner@example.test');
+			INSERT INTO user_profiles(id, email, role) VALUES ('${ids.owner}', 'owner@example.test', 'owner');
+			INSERT INTO asp_schools(id, name, address) VALUES ('${ids.school}', 'School One', '1 School Street');
+			INSERT INTO asp_students(id, name, school_id, date_of_birth) VALUES
+				('${ids.student}', 'Student One', '${ids.school}', '2020-01-01'),
+				('${studentTwo}', 'Student Two', '${ids.school}', '2020-01-01'),
+				('${studentThree}', 'Student Three', '${ids.school}', '2020-01-01');
+			INSERT INTO asp_vehicles(id, name, total_seats, kids_seats, booster_seats, license_plate)
+			VALUES ('${ids.vehicle}', 'Van One', 8, 6, 2, 'TEST-124');
+			GRANT USAGE ON SCHEMA public TO authenticated;
+			GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+			SELECT set_config('request.jwt.claim.sub', '${ids.owner}', false);
+			SET ROLE authenticated;
+		`);
+		await db.exec(`
+			SELECT public.replace_route_plan_snapshot('${date}', jsonb_build_array(
+				jsonb_build_object('student_id', '${ids.student}', 'school_id', '${ids.school}', 'attendance_status', 'P', 'drop_off_only', false, 'needs_booster', false, 'student_name_snapshot', 'Student One', 'school_name_snapshot', 'School One'),
+				jsonb_build_object('student_id', '${studentTwo}', 'school_id', '${ids.school}', 'attendance_status', 'P', 'drop_off_only', false, 'needs_booster', false, 'student_name_snapshot', 'Student Two', 'school_name_snapshot', 'School One'),
+				jsonb_build_object('student_id', '${studentThree}', 'school_id', '${ids.school}', 'attendance_status', 'P', 'drop_off_only', false, 'needs_booster', false, 'student_name_snapshot', 'Student Three', 'school_name_snapshot', 'School One')
+			));
+			SELECT public.create_route_lane((SELECT id FROM asp_route_plans WHERE plan_date = '${date}'));
+			SELECT public.set_route_vehicle((SELECT id FROM asp_routes WHERE date = '${date}'), '${ids.vehicle}');
+			SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${ids.student}', NULL);
+			SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${studentTwo}', NULL);
+			SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${studentThree}', NULL);
+		`);
+
+		const beforeRemoval = await db.query<{ student_id: string; seat_number: number }>(`
+			SELECT student_id, seat_number FROM asp_route_stops WHERE student_id = '${studentThree}'
+		`);
+		// Assert the concrete seat, not just "same as before": if setup silently
+		// produced no stops, both sides would be undefined and the test would
+		// pass vacuously.
+		expect(beforeRemoval.rows[0]?.seat_number).toBe(3);
+
+		await db.exec(`
+			SELECT public.remove_route_stop((SELECT id FROM asp_route_stops WHERE student_id = '${ids.student}'));
+		`);
+
+		const afterRemoval = await db.query<{ student_id: string; seat_number: number; order_index: number }>(`
+			SELECT student_id, seat_number, order_index FROM asp_route_stops
+			WHERE route_id = (SELECT id FROM asp_routes WHERE date = '${date}')
+			ORDER BY seat_number
+		`);
+		// Seats are fixed slots: removing seat 1 leaves seats 2 and 3 in place.
+		expect(afterRemoval.rows.map((row) => row.seat_number)).toEqual([2, 3]);
+		// Pickup order is the half that still compacts.
+		expect(afterRemoval.rows.map((row) => row.order_index)).toEqual([1, 2]);
+		await db.close();
+	});
 });
