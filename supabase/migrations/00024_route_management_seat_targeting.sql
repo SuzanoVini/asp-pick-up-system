@@ -261,3 +261,61 @@ $$;
 
 REVOKE ALL ON FUNCTION public.move_route_stop(uuid, uuid, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.move_route_stop(uuid, uuid, integer) TO authenticated;
+
+-- Same-lane seat move/swap. Seat and pickup order are independent concepts, so
+-- this deliberately leaves order_index alone.
+CREATE OR REPLACE FUNCTION public.reposition_route_stop_seat(p_stop_id uuid, p_seat_number integer)
+RETURNS asp_route_stops
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_stop asp_route_stops%ROWTYPE;
+  v_route asp_routes%ROWTYPE;
+  v_plan_status text;
+  v_original_seat integer;
+  v_occupant_id uuid;
+  v_parking_seat integer;
+BEGIN
+  PERFORM public.require_rpc_role(false);
+  IF p_seat_number IS NULL OR p_seat_number < 1 THEN
+    RAISE EXCEPTION 'Seat number must be a positive integer';
+  END IF;
+  SELECT * INTO v_stop FROM asp_route_stops WHERE id = p_stop_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Route stop not found'; END IF;
+  SELECT * INTO v_route FROM asp_routes WHERE id = v_stop.route_id FOR UPDATE;
+  SELECT status INTO v_plan_status FROM asp_route_plans WHERE id = v_route.plan_id;
+  IF v_plan_status <> 'draft' OR v_route.status = 'completed' THEN RAISE EXCEPTION 'Route is not editable'; END IF;
+
+  v_original_seat := v_stop.seat_number;
+  IF v_original_seat = p_seat_number THEN RETURN v_stop; END IF;
+
+  SELECT id INTO v_occupant_id FROM asp_route_stops
+  WHERE route_id = v_route.id AND seat_number = p_seat_number AND id <> p_stop_id;
+
+  -- Phase 1: park above any real seat so the original seat is free for the
+  -- swap partner. Positive temp offset keeps the seat_number > 0 CHECK valid,
+  -- matching the idiom in resequence_route_stops_internal.
+  SELECT COALESCE(MAX(seat_number), 0) + 100 INTO v_parking_seat
+  FROM asp_route_stops WHERE route_id = v_route.id;
+  UPDATE asp_route_stops SET seat_number = v_parking_seat, updated_by = auth.uid() WHERE id = p_stop_id;
+
+  IF v_occupant_id IS NOT NULL THEN
+    -- Phase 2: swap partner takes the freed original seat.
+    UPDATE asp_route_stops SET seat_number = v_original_seat, updated_by = auth.uid() WHERE id = v_occupant_id;
+  END IF;
+
+  -- Phase 3: land on the requested seat.
+  UPDATE asp_route_stops SET seat_number = p_seat_number, updated_by = auth.uid()
+  WHERE id = p_stop_id
+  RETURNING * INTO v_stop;
+
+  PERFORM public.write_rpc_audit('route_stop', p_stop_id, 'update',
+    jsonb_build_object('seat_number', p_seat_number, 'swapped_with', v_occupant_id));
+  RETURN v_stop;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reposition_route_stop_seat(uuid, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reposition_route_stop_seat(uuid, integer) TO authenticated;

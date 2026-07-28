@@ -399,4 +399,41 @@ describe("route management migrations in PostgreSQL", () => {
 		expect(source.rows.map((row) => row.order_index)).toEqual([1, 2]);
 		await db.close();
 	});
+
+	it("swaps two stops within the same lane via reposition_route_stop_seat", async () => {
+		const { db, routeId, stopIds } = await seedThreeStudentRoute();
+		const before = await db.query<{ id: string; seat_number: number; order_index: number }>(`
+			SELECT id, seat_number, order_index FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY seat_number
+		`);
+		const orderBefore = new Map(before.rows.map((row) => [row.id, row.order_index]));
+
+		// Move the seat-1 student into seat 2, which is occupied.
+		await db.exec(`SELECT public.reposition_route_stop_seat('${stopIds[0]}', 2);`);
+
+		const after = await db.query<{ id: string; seat_number: number; order_index: number }>(`
+			SELECT id, seat_number, order_index FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY seat_number
+		`);
+		const seatAfter = new Map(after.rows.map((row) => [row.id, row.seat_number]));
+		expect(seatAfter.get(stopIds[0])).toBe(2);
+		expect(seatAfter.get(stopIds[1])).toBe(1);
+		expect(seatAfter.get(stopIds[2])).toBe(3);
+		// Seat and pickup order are independent: swapping seats must not reorder pickups.
+		for (const row of after.rows) {
+			expect(row.order_index).toBe(orderBefore.get(row.id));
+		}
+		await db.close();
+	});
+
+	it("repositions a stop onto a free seat in the same lane", async () => {
+		const { db, routeId, stopIds } = await seedThreeStudentRoute();
+
+		await db.exec(`SELECT public.reposition_route_stop_seat('${stopIds[0]}', 6);`);
+
+		const after = await db.query<{ id: string; seat_number: number }>(`
+			SELECT id, seat_number FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY seat_number
+		`);
+		expect(after.rows.map((row) => row.seat_number)).toEqual([2, 3, 6]);
+		expect(after.rows.find((row) => row.id === stopIds[0])?.seat_number).toBe(6);
+		await db.close();
+	});
 });
