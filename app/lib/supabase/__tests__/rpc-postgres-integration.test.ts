@@ -19,6 +19,86 @@ async function expectSqlFailure(db: PGlite, sql: string, message: string) {
 	await expect(db.exec(sql)).rejects.toThrow(message);
 }
 
+const studentTwo = "30000000-0000-4000-8000-000000000002";
+const studentThree = "30000000-0000-4000-8000-000000000003";
+
+// Bootstraps a fresh PGlite database, runs all migrations, seeds an owner/school/vehicle,
+// and routes 3 base students (seats 1, 2, 3 in that order). Any extraStudents are added to
+// the plan snapshot but left unrouted. replace_route_plan_snapshot refuses to run again once
+// a route lane exists, so every student a test needs — routed or not — must be listed here.
+async function seedThreeStudentRoute(extraStudents: Array<{ id: string; name: string }> = []) {
+	const db = new PGlite({ extensions: { btree_gist } });
+	await db.exec(`
+		CREATE ROLE anon;
+		CREATE ROLE authenticated;
+		CREATE ROLE service_role;
+		CREATE SCHEMA auth;
+		CREATE TABLE auth.users (id uuid PRIMARY KEY, email text);
+		CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+			SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
+		$$;
+	`);
+	const migrations = join(process.cwd(), "supabase", "migrations");
+	for (const name of readdirSync(migrations)
+		.filter((name) => name.endsWith(".sql"))
+		.sort()) {
+		await db.exec(readFileSync(join(migrations, name), "utf8"));
+	}
+
+	await db.exec(`
+		INSERT INTO auth.users(id, email) VALUES ('${ids.owner}', 'owner@example.test');
+		INSERT INTO user_profiles(id, email, role) VALUES ('${ids.owner}', 'owner@example.test', 'owner');
+		INSERT INTO asp_schools(id, name, address) VALUES ('${ids.school}', 'School One', '1 School Street');
+		INSERT INTO asp_students(id, name, school_id, date_of_birth) VALUES
+			('${ids.student}', 'Student One', '${ids.school}', '2020-01-01'),
+			('${studentTwo}', 'Student Two', '${ids.school}', '2020-01-01'),
+			('${studentThree}', 'Student Three', '${ids.school}', '2020-01-01')
+			${extraStudents.map((student) => `, ('${student.id}', '${student.name}', '${ids.school}', '2020-01-01')`).join("")};
+		INSERT INTO asp_vehicles(id, name, total_seats, kids_seats, booster_seats, license_plate)
+		VALUES ('${ids.vehicle}', 'Van One', 8, 6, 2, 'TEST-124');
+		GRANT USAGE ON SCHEMA public TO authenticated;
+		GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+		SELECT set_config('request.jwt.claim.sub', '${ids.owner}', false);
+		SET ROLE authenticated;
+	`);
+
+	const snapshotStudents = [
+		{ id: ids.student, name: "Student One" },
+		{ id: studentTwo, name: "Student Two" },
+		{ id: studentThree, name: "Student Three" },
+		...extraStudents,
+	]
+		.map(
+			(student) =>
+				`jsonb_build_object('student_id', '${student.id}', 'school_id', '${ids.school}', 'attendance_status', 'P', 'drop_off_only', false, 'needs_booster', false, 'student_name_snapshot', '${student.name}', 'school_name_snapshot', 'School One')`,
+		)
+		.join(",\n\t\t\t");
+	await db.exec(`
+		SELECT public.replace_route_plan_snapshot('${date}', jsonb_build_array(
+			${snapshotStudents}
+		));
+		SELECT public.create_route_lane((SELECT id FROM asp_route_plans WHERE plan_date = '${date}'));
+		SELECT public.set_route_vehicle((SELECT id FROM asp_routes WHERE date = '${date}'), '${ids.vehicle}');
+		SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${ids.student}', NULL);
+		SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${studentTwo}', NULL);
+		SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${studentThree}', NULL);
+	`);
+
+	const routeId = (
+		await db.query<{ id: string }>(`SELECT id FROM asp_routes WHERE date = '${date}'`)
+	).rows[0].id;
+	const planId = (
+		await db.query<{ id: string }>(`SELECT id FROM asp_route_plans WHERE plan_date = '${date}'`)
+	).rows[0].id;
+	const stopIds = (
+		await db.query<{ id: string }>(`
+			SELECT id FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY seat_number
+		`)
+	).rows.map((row) => row.id);
+
+	return { db, planId, routeId, stopIds };
+}
+
 describe("route management migrations in PostgreSQL", () => {
 	it("supports the guarded owner and staff workflow from a clean database", async () => {
 		const db = new PGlite({ extensions: { btree_gist } });
@@ -144,53 +224,7 @@ describe("route management migrations in PostgreSQL", () => {
 	});
 
 	it("keeps seat_number stable for remaining stops when a stop is removed", async () => {
-		const db = new PGlite({ extensions: { btree_gist } });
-		await db.exec(`
-			CREATE ROLE anon;
-			CREATE ROLE authenticated;
-			CREATE ROLE service_role;
-			CREATE SCHEMA auth;
-			CREATE TABLE auth.users (id uuid PRIMARY KEY, email text);
-			CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
-				SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
-			$$;
-		`);
-		const migrations = join(process.cwd(), "supabase", "migrations");
-		for (const name of readdirSync(migrations)
-			.filter((name) => name.endsWith(".sql"))
-			.sort()) {
-			await db.exec(readFileSync(join(migrations, name), "utf8"));
-		}
-
-		const studentTwo = "30000000-0000-4000-8000-000000000002";
-		const studentThree = "30000000-0000-4000-8000-000000000003";
-		await db.exec(`
-			INSERT INTO auth.users(id, email) VALUES ('${ids.owner}', 'owner@example.test');
-			INSERT INTO user_profiles(id, email, role) VALUES ('${ids.owner}', 'owner@example.test', 'owner');
-			INSERT INTO asp_schools(id, name, address) VALUES ('${ids.school}', 'School One', '1 School Street');
-			INSERT INTO asp_students(id, name, school_id, date_of_birth) VALUES
-				('${ids.student}', 'Student One', '${ids.school}', '2020-01-01'),
-				('${studentTwo}', 'Student Two', '${ids.school}', '2020-01-01'),
-				('${studentThree}', 'Student Three', '${ids.school}', '2020-01-01');
-			INSERT INTO asp_vehicles(id, name, total_seats, kids_seats, booster_seats, license_plate)
-			VALUES ('${ids.vehicle}', 'Van One', 8, 6, 2, 'TEST-124');
-			GRANT USAGE ON SCHEMA public TO authenticated;
-			GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
-			SELECT set_config('request.jwt.claim.sub', '${ids.owner}', false);
-			SET ROLE authenticated;
-		`);
-		await db.exec(`
-			SELECT public.replace_route_plan_snapshot('${date}', jsonb_build_array(
-				jsonb_build_object('student_id', '${ids.student}', 'school_id', '${ids.school}', 'attendance_status', 'P', 'drop_off_only', false, 'needs_booster', false, 'student_name_snapshot', 'Student One', 'school_name_snapshot', 'School One'),
-				jsonb_build_object('student_id', '${studentTwo}', 'school_id', '${ids.school}', 'attendance_status', 'P', 'drop_off_only', false, 'needs_booster', false, 'student_name_snapshot', 'Student Two', 'school_name_snapshot', 'School One'),
-				jsonb_build_object('student_id', '${studentThree}', 'school_id', '${ids.school}', 'attendance_status', 'P', 'drop_off_only', false, 'needs_booster', false, 'student_name_snapshot', 'Student Three', 'school_name_snapshot', 'School One')
-			));
-			SELECT public.create_route_lane((SELECT id FROM asp_route_plans WHERE plan_date = '${date}'));
-			SELECT public.set_route_vehicle((SELECT id FROM asp_routes WHERE date = '${date}'), '${ids.vehicle}');
-			SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${ids.student}', NULL);
-			SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${studentTwo}', NULL);
-			SELECT public.assign_route_student((SELECT id FROM asp_routes WHERE date = '${date}'), '${studentThree}', NULL);
-		`);
+		const { db } = await seedThreeStudentRoute();
 
 		const beforeRemoval = await db.query<{ student_id: string; seat_number: number }>(`
 			SELECT student_id, seat_number FROM asp_route_stops WHERE student_id = '${studentThree}'
@@ -213,6 +247,33 @@ describe("route management migrations in PostgreSQL", () => {
 		expect(afterRemoval.rows.map((row) => row.seat_number)).toEqual([2, 3]);
 		// Pickup order is the half that still compacts.
 		expect(afterRemoval.rows.map((row) => row.order_index)).toEqual([1, 2]);
+		await db.close();
+	});
+
+	it("reorders pickup order without moving seat numbers", async () => {
+		const { db, routeId, stopIds } = await seedThreeStudentRoute();
+		const before = await db.query<{ id: string; seat_number: number }>(`
+			SELECT id, seat_number FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY seat_number
+		`);
+		// Track seat per STOP, not the set of seat numbers. Reordering all N stops
+		// permutes which stop holds which seat while the set stays {1..N}, so
+		// comparing sorted seat arrays cannot detect the bug this test guards.
+		const seatByStopIdBefore = new Map(before.rows.map((row) => [row.id, row.seat_number]));
+
+		const reversedIds = [...stopIds].reverse();
+		await db.exec(`
+			SELECT public.reorder_route_stops('${routeId}', ARRAY[${reversedIds.map((id) => `'${id}'`).join(",")}]::uuid[]);
+		`);
+
+		const after = await db.query<{ id: string; seat_number: number; order_index: number }>(`
+			SELECT id, seat_number, order_index FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY seat_number
+		`);
+		for (const row of after.rows) {
+			expect(row.seat_number).toBe(seatByStopIdBefore.get(row.id));
+		}
+		// ...while pickup order really did reverse: last stop is now first.
+		const orderByStopIdAfter = new Map(after.rows.map((row) => [row.id, row.order_index]));
+		expect(reversedIds.map((id) => orderByStopIdAfter.get(id))).toEqual([1, 2, 3]);
 		await db.close();
 	});
 });
