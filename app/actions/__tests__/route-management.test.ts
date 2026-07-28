@@ -249,6 +249,7 @@ describe("createOrRefreshRoutePlan", () => {
 		});
 		jest.mocked(getRoutesForPlan).mockResolvedValue([]);
 		jest.mocked(replacePlanSnapshot).mockResolvedValue({ id: "plan-1", status: "draft" });
+		jest.mocked(getActiveVehicles).mockResolvedValue([]);
 
 		await createOrRefreshRoutePlan({ date: "2026-07-06" });
 
@@ -338,6 +339,55 @@ describe("createOrRefreshRoutePlan", () => {
 			"Missing school metadata for missing-school",
 		);
 		expect(replacePlanSnapshot).not.toHaveBeenCalled();
+	});
+
+	it("creates one lane per active vehicle when the plan has no lanes yet", async () => {
+		const { client } = fakeSupabase();
+		jest.mocked(createClient).mockResolvedValue(client as never);
+		jest.mocked(materializeAttendanceForDate).mockResolvedValue([]);
+		jest.mocked(getPlanForDate).mockResolvedValue({
+			id: "plan-1",
+			plan_date: "2026-07-06",
+			status: "draft",
+		});
+		jest.mocked(getRoutesForPlan).mockResolvedValue([]);
+		jest.mocked(replacePlanSnapshot).mockResolvedValue({
+			id: "plan-1",
+			plan_date: "2026-07-06",
+			status: "draft",
+		});
+		jest.mocked(getActiveVehicles).mockResolvedValue([
+			{ id: "vehicle-1", name: "Van One", is_active: true },
+			{ id: "vehicle-2", name: "Van Two", is_active: true },
+		]);
+		jest
+			.mocked(createRouteLane)
+			.mockResolvedValueOnce({ id: "route-1" })
+			.mockResolvedValueOnce({ id: "route-2" });
+
+		await createOrRefreshRoutePlan({ date: "2026-07-06" });
+
+		expect(createRouteLane).toHaveBeenCalledTimes(2);
+		expect(setRouteVehicleRpc).toHaveBeenCalledWith(client, "route-1", "vehicle-1");
+		expect(setRouteVehicleRpc).toHaveBeenCalledWith(client, "route-2", "vehicle-2");
+	});
+
+	it("does not create lanes again when the plan already has lanes", async () => {
+		const { client } = fakeSupabase();
+		jest.mocked(createClient).mockResolvedValue(client as never);
+		jest.mocked(getPlanForDate).mockResolvedValue({
+			id: "plan-1",
+			plan_date: "2026-07-06",
+			status: "draft",
+		});
+		jest.mocked(getRoutesForPlan).mockResolvedValue([{ id: "route-1" }]);
+		jest.mocked(getActiveVehicles).mockResolvedValue([
+			{ id: "vehicle-1", name: "Van One", is_active: true },
+		]);
+
+		await createOrRefreshRoutePlan({ date: "2026-07-06" });
+
+		expect(createRouteLane).not.toHaveBeenCalled();
 	});
 });
 

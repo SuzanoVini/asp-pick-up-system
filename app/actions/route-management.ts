@@ -197,6 +197,14 @@ export async function createOrRefreshRoutePlan(input: CreateOrRefreshRoutePlanIn
 		plan = await replacePlanSnapshot(supabase, date, snapshots);
 	}
 
+	if (plan && plan.status === "draft" && routes.length === 0) {
+		const activeVehicles = await getActiveVehicles(supabase);
+		for (const vehicle of activeVehicles) {
+			const lane = await createRouteLane(supabase, plan.id);
+			await setRouteVehicleRpc(supabase, lane.id, vehicle.id);
+		}
+	}
+
 	revalidateRouteManagement(date);
 	return plan;
 }
