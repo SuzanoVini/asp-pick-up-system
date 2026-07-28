@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoutableUnassignedStudents } from "../route-plan-students";
 import { finalizePlan, getHistoryPlans, getPlanForDate, replacePlanSnapshot } from "../route-plans";
-import { getStopsForPlan, moveRouteStop } from "../route-stops";
+import {
+	assignRouteStudent,
+	getStopsForPlan,
+	moveRouteStop,
+	repositionRouteStopSeat,
+} from "../route-stops";
 import { createRouteLane, getRouteStaffSelection, getRoutesForPlanForRole } from "../routes";
 import {
 	getAvailableStaffAndAssignmentsForDate,
@@ -187,7 +192,43 @@ describe("route management Supabase queries", () => {
 		expect(calls).toContainEqual({ method: "eq", args: ["asp_routes.plan_id", "plan-1"] });
 		expect(calls).toContainEqual({
 			method: "rpc",
-			args: ["move_route_stop", { p_stop_id: "stop-1", p_target_route_id: "route-2" }],
+			args: [
+				"move_route_stop",
+				{ p_stop_id: "stop-1", p_target_route_id: "route-2", p_seat_number: null },
+			],
+		});
+	});
+
+	it("passes seat_number through to assign_route_student", async () => {
+		const rpc = jest.fn().mockResolvedValue({ data: { id: "stop-1" }, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+		await assignRouteStudent(supabase, "route-1", "student-1", null, 3);
+		expect(rpc).toHaveBeenCalledWith("assign_route_student", {
+			p_route_id: "route-1",
+			p_student_id: "student-1",
+			p_responsible_staff_id: null,
+			p_seat_number: 3,
+		});
+	});
+
+	it("passes seat_number through to move_route_stop", async () => {
+		const rpc = jest.fn().mockResolvedValue({ data: { id: "stop-1" }, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+		await moveRouteStop(supabase, "stop-1", "route-2", 4);
+		expect(rpc).toHaveBeenCalledWith("move_route_stop", {
+			p_stop_id: "stop-1",
+			p_target_route_id: "route-2",
+			p_seat_number: 4,
+		});
+	});
+
+	it("calls reposition_route_stop_seat", async () => {
+		const rpc = jest.fn().mockResolvedValue({ data: { id: "stop-1" }, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+		await repositionRouteStopSeat(supabase, "stop-1", 2);
+		expect(rpc).toHaveBeenCalledWith("reposition_route_stop_seat", {
+			p_stop_id: "stop-1",
+			p_seat_number: 2,
 		});
 	});
 

@@ -11,6 +11,7 @@ import {
 	removeRouteTable,
 	removeStudentStop,
 	reorderRouteStops,
+	repositionRouteStopSeatAction,
 	setRouteStaff,
 	setRouteVehicle,
 	updateStopResponsibleStaff,
@@ -43,6 +44,7 @@ jest.mock("../../lib/supabase/route-stops", () => ({
 	moveRouteStop: jest.fn(),
 	removeRouteStop: jest.fn(),
 	reorderRouteStops: jest.fn(),
+	repositionRouteStopSeat: jest.fn(),
 	setRouteStopResponsibleStaff: jest.fn(),
 }));
 jest.mock("../../lib/supabase/routes", () => ({
@@ -95,6 +97,7 @@ const {
 	moveRouteStop,
 	removeRouteStop,
 	reorderRouteStops: reorderRouteStopsRpc,
+	repositionRouteStopSeat: repositionRouteStopSeatRpc,
 	setRouteStopResponsibleStaff,
 } = jest.requireMock("../../lib/supabase/route-stops") as Record<string, jest.Mock>;
 const {
@@ -638,11 +641,17 @@ describe("guarded manual route editing", () => {
 	it("assigns a routable student without applying capacity rejection", async () => {
 		await assignStudent({ routeId, studentId, responsibleStaffId: staffId });
 
-		expect(assignRouteStudent).toHaveBeenCalledWith(client, routeId, studentId, staffId);
+		expect(assignRouteStudent).toHaveBeenCalledWith(client, routeId, studentId, staffId, undefined);
 		expect(refreshRouteDistances).toHaveBeenCalledWith(client, routeId, {
 			lat: 49.1,
 			lng: -123.1,
 		});
+	});
+
+	it("passes an explicit seat number through to assign_route_student", async () => {
+		await assignStudent({ routeId, studentId, responsibleStaffId: staffId, seatNumber: 3 });
+
+		expect(assignRouteStudent).toHaveBeenCalledWith(client, routeId, studentId, staffId, 3);
 	});
 
 	it("assigns an available school group with one RPC", async () => {
@@ -702,7 +711,7 @@ describe("guarded manual route editing", () => {
 		await moveStudentStop({ stopId, targetRouteId });
 		expect(getAuthorizedUser).toHaveBeenCalledTimes(1);
 		expect(requireOwner).toHaveBeenCalledTimes(1);
-		expect(moveRouteStop).toHaveBeenCalledWith(client, stopId, targetRouteId);
+		expect(moveRouteStop).toHaveBeenCalledWith(client, stopId, targetRouteId, undefined);
 		expect(refreshRouteDistances).toHaveBeenCalledWith(client, routeId, {
 			lat: 49.1,
 			lng: -123.1,
@@ -711,6 +720,26 @@ describe("guarded manual route editing", () => {
 			lat: 49.1,
 			lng: -123.1,
 		});
+	});
+
+	it("passes an explicit seat number through to move_route_stop", async () => {
+		jest
+			.mocked(getRouteWithPlan)
+			.mockResolvedValueOnce(editableRoute)
+			.mockResolvedValueOnce({ ...editableRoute, id: targetRouteId });
+
+		await moveStudentStop({ stopId, targetRouteId, seatNumber: 5 });
+
+		expect(moveRouteStop).toHaveBeenCalledWith(client, stopId, targetRouteId, 5);
+	});
+
+	it("repositions a stop's seat within its own lane", async () => {
+		await repositionRouteStopSeatAction({ stopId, seatNumber: 2 });
+
+		expect(getStopById).toHaveBeenCalledWith(client, stopId);
+		expect(getRouteWithPlan).toHaveBeenCalledWith(client, routeId);
+		expect(repositionRouteStopSeatRpc).toHaveBeenCalledWith(client, stopId, 2);
+		expect(revalidatePath).toHaveBeenCalledWith(`/route-management?date=${date}`);
 	});
 
 	it("delegates a full unique reorder to one RPC", async () => {

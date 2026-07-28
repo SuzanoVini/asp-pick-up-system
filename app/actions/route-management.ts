@@ -23,6 +23,8 @@ import {
 	removeRouteTableSchema,
 	removeStudentStopSchema,
 	reorderRouteStopsSchema,
+	type RepositionRouteStopSeatInput,
+	repositionRouteStopSeatSchema,
 	type SetRouteStaffInput,
 	type SetRouteVehicleInput,
 	setRouteStaffSchema,
@@ -47,6 +49,7 @@ import {
 	moveRouteStop,
 	removeRouteStop,
 	reorderRouteStops as reorderRouteStopsRpc,
+	repositionRouteStopSeat as repositionRouteStopSeatQuery,
 	setRouteStopResponsibleStaff,
 } from "../lib/supabase/route-stops";
 import {
@@ -247,7 +250,7 @@ export async function setRouteStaff(input: SetRouteStaffInput) {
 }
 
 export async function assignStudent(input: AssignStudentInput) {
-	const { routeId, studentId, responsibleStaffId } = assignStudentSchema.parse(input);
+	const { routeId, studentId, responsibleStaffId, seatNumber } = assignStudentSchema.parse(input);
 	const supabase = await createClient();
 	const route = await getEditableRoute(supabase, routeId);
 	const { students, assignedStudentIds } = await getPlanAssignmentState(supabase, route.plan_id);
@@ -261,7 +264,13 @@ export async function assignStudent(input: AssignStudentInput) {
 	if (responsibleStaffId) {
 		await validateAvailableStaff(supabase, responsibleStaffId, route.date);
 	}
-	const result = await assignRouteStudent(supabase, routeId, studentId, responsibleStaffId);
+	const result = await assignRouteStudent(
+		supabase,
+		routeId,
+		studentId,
+		responsibleStaffId,
+		seatNumber,
+	);
 	await refreshAffectedRoutes(supabase, [routeId]);
 	revalidateRouteManagement(route.date);
 	return result;
@@ -299,14 +308,14 @@ export async function removeStudentStop(input: RemoveStudentStopInput) {
 }
 
 export async function moveStudentStop(input: MoveStudentStopInput) {
-	const { stopId, targetRouteId } = moveStudentStopSchema.parse(input);
+	const { stopId, targetRouteId, seatNumber } = moveStudentStopSchema.parse(input);
 	const supabase = await createClient();
 	const ownerContext = await authorizeOwner(supabase);
 	const stop = await getStopById(supabase, stopId);
 	const source = await getEditableRoute(supabase, stop.route_id, ownerContext);
 	const target = await getEditableRoute(supabase, targetRouteId, ownerContext);
 	if (source.plan_id !== target.plan_id) throw new Error("Routes must belong to the same plan");
-	const result = await moveRouteStop(supabase, stopId, targetRouteId);
+	const result = await moveRouteStop(supabase, stopId, targetRouteId, seatNumber);
 	await refreshAffectedRoutes(supabase, [source.id, target.id]);
 	revalidateRouteManagement(source.date);
 	return result;
@@ -338,6 +347,18 @@ export async function updateStopResponsibleStaff(input: UpdateStopResponsibleSta
 	const route = await getEditableRoute(supabase, stop.route_id, ownerContext);
 	if (staffId) await validateAvailableStaff(supabase, staffId, route.date);
 	const result = await setRouteStopResponsibleStaff(supabase, stopId, staffId);
+	revalidateRouteManagement(route.date);
+	return result;
+}
+
+export async function repositionRouteStopSeatAction(input: RepositionRouteStopSeatInput) {
+	const { stopId, seatNumber } = repositionRouteStopSeatSchema.parse(input);
+	const supabase = await createClient();
+	const ownerContext = await authorizeOwner(supabase);
+	const stop = await getStopById(supabase, stopId);
+	const route = await getEditableRoute(supabase, stop.route_id, ownerContext);
+	const result = await repositionRouteStopSeatQuery(supabase, stopId, seatNumber);
+	await refreshAffectedRoutes(supabase, [route.id]);
 	revalidateRouteManagement(route.date);
 	return result;
 }

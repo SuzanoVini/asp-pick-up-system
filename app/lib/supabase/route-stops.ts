@@ -43,11 +43,13 @@ export async function assignRouteStudent(
 	routeId: string,
 	studentId: string,
 	responsibleStaffId: string | null,
+	seatNumber?: number | null,
 ) {
 	const { data, error } = await supabase.rpc("assign_route_student", {
 		p_route_id: routeId,
 		p_student_id: studentId,
 		p_responsible_staff_id: responsibleStaffId,
+		p_seat_number: seatNumber ?? null,
 	});
 	if (error) throw error;
 	return data;
@@ -76,10 +78,25 @@ export async function moveRouteStop(
 	supabase: SupabaseClient,
 	stopId: string,
 	targetRouteId: string,
+	seatNumber?: number | null,
 ) {
 	const { data, error } = await supabase.rpc("move_route_stop", {
 		p_stop_id: stopId,
 		p_target_route_id: targetRouteId,
+		p_seat_number: seatNumber ?? null,
+	});
+	if (error) throw error;
+	return data;
+}
+
+export async function repositionRouteStopSeat(
+	supabase: SupabaseClient,
+	stopId: string,
+	seatNumber: number,
+) {
+	const { data, error } = await supabase.rpc("reposition_route_stop_seat", {
+		p_stop_id: stopId,
+		p_seat_number: seatNumber,
 	});
 	if (error) throw error;
 	return data;

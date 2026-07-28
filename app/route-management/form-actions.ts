@@ -9,6 +9,7 @@ import {
 	removeRouteTable,
 	removeStudentStop,
 	reorderRouteStops,
+	repositionRouteStopSeatAction,
 	setRouteStaff,
 	setRouteVehicle,
 } from "../actions/route-management";
@@ -43,10 +44,12 @@ export async function setRouteStaffFromForm(formData: FormData) {
 }
 
 export async function assignStudentFromForm(formData: FormData) {
+	const rawSeat = value(formData, "seatNumber");
 	await assignStudent({
 		routeId: value(formData, "routeId"),
 		studentId: value(formData, "studentId"),
 		responsibleStaffId: nullableValue(formData, "responsibleStaffId"),
+		seatNumber: rawSeat ? Number(rawSeat) : undefined,
 	});
 }
 
@@ -62,9 +65,18 @@ export async function removeStudentStopFromForm(formData: FormData) {
 }
 
 export async function moveStudentStopFromForm(formData: FormData) {
+	const rawSeat = value(formData, "seatNumber");
 	await moveStudentStop({
 		stopId: value(formData, "stopId"),
 		targetRouteId: value(formData, "targetRouteId"),
+		seatNumber: rawSeat ? Number(rawSeat) : undefined,
+	});
+}
+
+export async function repositionRouteStopSeatFromForm(formData: FormData) {
+	await repositionRouteStopSeatAction({
+		stopId: value(formData, "stopId"),
+		seatNumber: Number(value(formData, "seatNumber")),
 	});
 }
 

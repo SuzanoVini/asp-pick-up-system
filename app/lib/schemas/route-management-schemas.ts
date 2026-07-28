@@ -51,6 +51,7 @@ export const assignStudentSchema = z.object({
 	routeId: uuidSchema,
 	studentId: uuidSchema,
 	responsibleStaffId: nullableUuidSchema,
+	seatNumber: z.number().int().positive().nullable().optional(),
 });
 export const assignSchoolGroupSchema = z.object({
 	routeId: uuidSchema,
@@ -60,6 +61,11 @@ export const removeStudentStopSchema = z.object({ stopId: uuidSchema });
 export const moveStudentStopSchema = z.object({
 	stopId: uuidSchema,
 	targetRouteId: uuidSchema,
+	seatNumber: z.number().int().positive().nullable().optional(),
+});
+export const repositionRouteStopSeatSchema = z.object({
+	stopId: uuidSchema,
+	seatNumber: z.number().int().positive(),
 });
 export const reorderRouteStopsSchema = z.object({
 	routeId: uuidSchema,
@@ -98,6 +104,7 @@ export type AssignStudentInput = z.infer<typeof assignStudentSchema>;
 export type AssignSchoolGroupInput = z.infer<typeof assignSchoolGroupSchema>;
 export type RemoveStudentStopInput = z.infer<typeof removeStudentStopSchema>;
 export type MoveStudentStopInput = z.infer<typeof moveStudentStopSchema>;
+export type RepositionRouteStopSeatInput = z.infer<typeof repositionRouteStopSeatSchema>;
 export type ReorderRouteStopsInput = z.infer<typeof reorderRouteStopsSchema>;
 export type UpdateStopResponsibleStaffInput = z.infer<typeof updateStopResponsibleStaffSchema>;
 export type FinalizeRoutePlanInput = z.infer<typeof finalizeRoutePlanSchema>;
