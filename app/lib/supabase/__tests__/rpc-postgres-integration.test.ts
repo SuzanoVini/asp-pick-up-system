@@ -276,4 +276,59 @@ describe("route management migrations in PostgreSQL", () => {
 		expect(reversedIds.map((id) => orderByStopIdAfter.get(id))).toEqual([1, 2, 3]);
 		await db.close();
 	});
+
+	it("assigns a student to a specific seat and bumps the prior occupant to unrouted when dragging from the unrouted panel", async () => {
+		const studentFour = "30000000-0000-4000-8000-000000000004";
+		// Student Four must be in the ONE snapshot call inside the helper —
+		// replace_route_plan_snapshot cannot be re-called once the lane exists.
+		const { db, routeId } = await seedThreeStudentRoute([{ id: studentFour, name: "Student Four" }]);
+
+		const occupied = await db.query<{ seat_number: number }>(`
+			SELECT seat_number FROM asp_route_stops WHERE route_id = '${routeId}' AND student_id = '${ids.student}'
+		`);
+		const targetSeat = occupied.rows[0].seat_number;
+
+		await db.exec(`SELECT public.assign_route_student('${routeId}', '${studentFour}', NULL, ${targetSeat});`);
+
+		const stops = await db.query<{ student_id: string; seat_number: number }>(`
+			SELECT student_id, seat_number FROM asp_route_stops WHERE route_id = '${routeId}'
+		`);
+		expect(stops.rows).toContainEqual({ student_id: studentFour, seat_number: targetSeat });
+		expect(stops.rows.find((row) => row.student_id === ids.student)).toBeUndefined();
+
+		// The bumped stop took its order_index with it; pickup order must stay
+		// dense (1..N) rather than keeping a hole where the bumped stop was.
+		const orders = await db.query<{ order_index: number }>(`
+			SELECT order_index FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY order_index
+		`);
+		expect(orders.rows.map((row) => row.order_index)).toEqual([1, 2, 3]);
+		await db.close();
+	});
+
+	it("assigns a student to a specific free seat without disturbing occupied seats", async () => {
+		const studentFour = "30000000-0000-4000-8000-000000000004";
+		const { db, routeId } = await seedThreeStudentRoute([{ id: studentFour, name: "Student Four" }]);
+
+		// Seats 1-3 are taken; drop into seat 5, leaving seat 4 deliberately empty.
+		await db.exec(`SELECT public.assign_route_student('${routeId}', '${studentFour}', NULL, 5);`);
+
+		const stops = await db.query<{ student_id: string; seat_number: number }>(`
+			SELECT student_id, seat_number FROM asp_route_stops WHERE route_id = '${routeId}' ORDER BY seat_number
+		`);
+		expect(stops.rows.map((row) => row.seat_number)).toEqual([1, 2, 3, 5]);
+		expect(stops.rows.find((row) => row.student_id === studentFour)?.seat_number).toBe(5);
+		await db.close();
+	});
+
+	it("rejects a seat number that would collide with the internal swap sentinel", async () => {
+		const studentFour = "30000000-0000-4000-8000-000000000004";
+		const { db, routeId } = await seedThreeStudentRoute([{ id: studentFour, name: "Student Four" }]);
+
+		await expectSqlFailure(
+			db,
+			`SELECT public.assign_route_student('${routeId}', '${studentFour}', NULL, -1);`,
+			"Seat number must be a positive integer",
+		);
+		await db.close();
+	});
 });
