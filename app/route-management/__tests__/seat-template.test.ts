@@ -26,9 +26,20 @@ function stop(overrides: Partial<SeatTemplateStop> = {}): SeatTemplateStop {
 
 describe("buildSeatTemplate", () => {
 	it("builds one row per kid seat plus fixed helper and driver rows", () => {
-		const rows = buildSeatTemplate({ vehicle, stops: [], driverStaffId: null, helperStaffId: null });
+		const rows = buildSeatTemplate({
+			vehicle,
+			stops: [],
+			driverStaffId: null,
+			helperStaffId: null,
+		});
 
-		expect(rows.map((row) => row.kind)).toEqual(["student", "student", "student", "helper", "driver"]);
+		expect(rows.map((row) => row.kind)).toEqual([
+			"student",
+			"student",
+			"student",
+			"helper",
+			"driver",
+		]);
 		expect(rows.map((row) => row.seatNumber)).toEqual([1, 2, 3, null, null]);
 	});
 
@@ -76,7 +87,9 @@ describe("buildSeatTemplate", () => {
 		});
 
 		expect(rows.filter((row) => row.kind === "student")).toHaveLength(3);
-		expect(rows.some((row) => row.kind === "student" && row.stopId === "stop-overflow")).toBe(false);
+		expect(rows.some((row) => row.kind === "student" && row.stopId === "stop-overflow")).toBe(
+			false,
+		);
 	});
 
 	it("fills helper and driver rows from staff assignment ids", () => {

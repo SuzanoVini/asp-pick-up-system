@@ -381,9 +381,9 @@ describe("createOrRefreshRoutePlan", () => {
 			status: "draft",
 		});
 		jest.mocked(getRoutesForPlan).mockResolvedValue([{ id: "route-1" }]);
-		jest.mocked(getActiveVehicles).mockResolvedValue([
-			{ id: "vehicle-1", name: "Van One", is_active: true },
-		]);
+		jest
+			.mocked(getActiveVehicles)
+			.mockResolvedValue([{ id: "vehicle-1", name: "Van One", is_active: true }]);
 
 		await createOrRefreshRoutePlan({ date: "2026-07-06" });
 

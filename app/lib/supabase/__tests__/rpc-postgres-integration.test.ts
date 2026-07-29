@@ -238,7 +238,11 @@ describe("route management migrations in PostgreSQL", () => {
 			SELECT public.remove_route_stop((SELECT id FROM asp_route_stops WHERE student_id = '${ids.student}'));
 		`);
 
-		const afterRemoval = await db.query<{ student_id: string; seat_number: number; order_index: number }>(`
+		const afterRemoval = await db.query<{
+			student_id: string;
+			seat_number: number;
+			order_index: number;
+		}>(`
 			SELECT student_id, seat_number, order_index FROM asp_route_stops
 			WHERE route_id = (SELECT id FROM asp_routes WHERE date = '${date}')
 			ORDER BY seat_number
@@ -281,14 +285,18 @@ describe("route management migrations in PostgreSQL", () => {
 		const studentFour = "30000000-0000-4000-8000-000000000004";
 		// Student Four must be in the ONE snapshot call inside the helper —
 		// replace_route_plan_snapshot cannot be re-called once the lane exists.
-		const { db, routeId } = await seedThreeStudentRoute([{ id: studentFour, name: "Student Four" }]);
+		const { db, routeId } = await seedThreeStudentRoute([
+			{ id: studentFour, name: "Student Four" },
+		]);
 
 		const occupied = await db.query<{ seat_number: number }>(`
 			SELECT seat_number FROM asp_route_stops WHERE route_id = '${routeId}' AND student_id = '${ids.student}'
 		`);
 		const targetSeat = occupied.rows[0].seat_number;
 
-		await db.exec(`SELECT public.assign_route_student('${routeId}', '${studentFour}', NULL, ${targetSeat});`);
+		await db.exec(
+			`SELECT public.assign_route_student('${routeId}', '${studentFour}', NULL, ${targetSeat});`,
+		);
 
 		const stops = await db.query<{ student_id: string; seat_number: number }>(`
 			SELECT student_id, seat_number FROM asp_route_stops WHERE route_id = '${routeId}'
@@ -307,7 +315,9 @@ describe("route management migrations in PostgreSQL", () => {
 
 	it("assigns a student to a specific free seat without disturbing occupied seats", async () => {
 		const studentFour = "30000000-0000-4000-8000-000000000004";
-		const { db, routeId } = await seedThreeStudentRoute([{ id: studentFour, name: "Student Four" }]);
+		const { db, routeId } = await seedThreeStudentRoute([
+			{ id: studentFour, name: "Student Four" },
+		]);
 
 		// Seats 1-3 are taken; drop into seat 5, leaving seat 4 deliberately empty.
 		await db.exec(`SELECT public.assign_route_student('${routeId}', '${studentFour}', NULL, 5);`);
@@ -322,7 +332,9 @@ describe("route management migrations in PostgreSQL", () => {
 
 	it("rejects a non-positive seat number at the RPC boundary", async () => {
 		const studentFour = "30000000-0000-4000-8000-000000000004";
-		const { db, routeId } = await seedThreeStudentRoute([{ id: studentFour, name: "Student Four" }]);
+		const { db, routeId } = await seedThreeStudentRoute([
+			{ id: studentFour, name: "Student Four" },
+		]);
 
 		await expectSqlFailure(
 			db,
@@ -336,9 +348,12 @@ describe("route management migrations in PostgreSQL", () => {
 		const studentFive = "30000000-0000-4000-8000-000000000005";
 		// Student Five goes into the helper's single snapshot call — the snapshot
 		// cannot be re-replaced once the first lane exists.
-		const { db, planId, routeId: sourceRouteId, stopIds } = await seedThreeStudentRoute([
-			{ id: studentFive, name: "Student Five" },
-		]);
+		const {
+			db,
+			planId,
+			routeId: sourceRouteId,
+			stopIds,
+		} = await seedThreeStudentRoute([{ id: studentFive, name: "Student Five" }]);
 
 		// create_route_lane RETURNS the asp_routes composite row — select its .id
 		// field explicitly, or rows[0].id would be the whole serialized tuple.
@@ -355,16 +370,26 @@ describe("route management migrations in PostgreSQL", () => {
 		`);
 
 		const movingStopId = stopIds[0];
-		const movingStopBefore = await db.query<{ seat_number: number }>(`SELECT seat_number FROM asp_route_stops WHERE id = '${movingStopId}'`);
+		const movingStopBefore = await db.query<{ seat_number: number }>(
+			`SELECT seat_number FROM asp_route_stops WHERE id = '${movingStopId}'`,
+		);
 		const sourceSeat = movingStopBefore.rows[0].seat_number;
-		const targetOccupant = await db.query<{ id: string; seat_number: number }>(`SELECT id, seat_number FROM asp_route_stops WHERE route_id = '${targetRoute}' AND student_id = '${studentFive}'`);
+		const targetOccupant = await db.query<{ id: string; seat_number: number }>(
+			`SELECT id, seat_number FROM asp_route_stops WHERE route_id = '${targetRoute}' AND student_id = '${studentFive}'`,
+		);
 		const targetSeat = targetOccupant.rows[0].seat_number;
 
-		await db.exec(`SELECT public.move_route_stop('${movingStopId}', '${targetRoute}', ${targetSeat});`);
+		await db.exec(
+			`SELECT public.move_route_stop('${movingStopId}', '${targetRoute}', ${targetSeat});`,
+		);
 
-		const moved = await db.query<{ route_id: string; seat_number: number }>(`SELECT route_id, seat_number FROM asp_route_stops WHERE id = '${movingStopId}'`);
+		const moved = await db.query<{ route_id: string; seat_number: number }>(
+			`SELECT route_id, seat_number FROM asp_route_stops WHERE id = '${movingStopId}'`,
+		);
 		expect(moved.rows[0]).toEqual({ route_id: targetRoute, seat_number: targetSeat });
-		const swapped = await db.query<{ route_id: string; seat_number: number }>(`SELECT route_id, seat_number FROM asp_route_stops WHERE id = '${targetOccupant.rows[0].id}'`);
+		const swapped = await db.query<{ route_id: string; seat_number: number }>(
+			`SELECT route_id, seat_number FROM asp_route_stops WHERE id = '${targetOccupant.rows[0].id}'`,
+		);
 		expect(swapped.rows[0]).toEqual({ route_id: sourceRouteId, seat_number: sourceSeat });
 		await db.close();
 	});
