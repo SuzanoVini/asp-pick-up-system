@@ -1,15 +1,28 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
-	addRouteTableFromForm,
-	assignSchoolGroupFromForm,
-	assignStudentFromForm,
-	moveStudentStopFromForm,
-	removeRouteTableFromForm,
-	removeStudentStopFromForm,
-	reorderRouteStopsFromForm,
-	setRouteStaffFromForm,
-	setRouteVehicleFromForm,
-} from "./form-actions";
+	addRouteTable,
+	assignSchoolGroup,
+	assignStudent,
+	moveStudentStop,
+	removeRouteTable,
+	removeStudentStop,
+	reorderRouteStops,
+	repositionRouteStopSeatAction,
+	setRouteStaff,
+	setRouteVehicle,
+} from "../actions/route-management";
+import {
+	type AssignmentSource,
+	type AssignmentTarget,
+	resolveStudentAssignment,
+} from "./assignment-resolver";
 import { RouteExportButton } from "./route-export-button";
+import { filterByName } from "./search-filter";
+import { SeatRow } from "./seat-row";
+import { buildSeatTemplate, type SeatTemplateVehicle } from "./seat-template";
 
 interface RouteOption {
 	id: string;
@@ -28,6 +41,10 @@ interface StopOption {
 	order_index: number;
 	seat_number: number;
 	needs_booster: boolean;
+	responsible_staff_id?: string | null;
+	responsible_staff_name_snapshot?: string | null;
+	dismissal_time_snapshot?: string | null;
+	school_address_snapshot?: string | null;
 }
 
 interface StudentOption {
@@ -37,6 +54,14 @@ interface StudentOption {
 	schoolId: string;
 }
 
+interface VehicleOption {
+	id: string;
+	name: string;
+	kids_seats: number;
+	booster_seats: number;
+	license_plate?: string | null;
+}
+
 interface BoardProps {
 	planId: string;
 	editable: boolean;
@@ -44,13 +69,14 @@ interface BoardProps {
 	routes: RouteOption[];
 	stops: StopOption[];
 	unroutedStudents: StudentOption[];
-	vehicles: Array<{ id: string; name: string }>;
+	vehicles: VehicleOption[];
 	staff: Array<{ id: string; name: string; capabilities: string[] }>;
 	assignments: Array<{ staff_id: string; vehicle_id: string; role: "driver" | "helper" }>;
 }
 
 const fieldClass = "rounded border border-gray-300 px-2 py-1 text-xs";
 const buttonClass = "rounded border border-gray-300 px-2 py-1 text-xs font-medium hover:bg-gray-50";
+const chipClass = "rounded border border-gray-300 bg-white px-2 py-1 text-xs";
 
 function moved(ids: string[], index: number, offset: -1 | 1) {
 	const target = index + offset;
@@ -60,47 +86,122 @@ function moved(ids: string[], index: number, offset: -1 | 1) {
 	return result;
 }
 
-function ReorderForm({
-	routeId,
-	orderedStopIds,
-	label,
-	disabled,
-}: {
-	routeId: string;
-	orderedStopIds: string[];
-	label: string;
-	disabled: boolean;
-}) {
-	return (
-		<form action={reorderRouteStopsFromForm}>
-			<input type="hidden" name="routeId" value={routeId} />
-			{orderedStopIds.map((id) => (
-				<input key={id} type="hidden" name="orderedStopId" value={id} />
-			))}
-			<button type="submit" disabled={disabled} className={buttonClass}>
-				{label}
-			</button>
-		</form>
-	);
-}
-
+/**
+ * The pickup board. Every lane renders its vehicle's fixed seat template, and
+ * each seat accepts a student by drag, by click (after arming a card in the
+ * palette), or by typing a name — all three resolve through the same handler.
+ */
 export function RouteManagementBoard(props: BoardProps) {
+	const router = useRouter();
+	const [armedSource, setArmedSource] = useState<AssignmentSource | null>(null);
+	const [searches, setSearches] = useState<Record<string, string>>({});
+	const [error, setError] = useState("");
+
 	const schools = Array.from(
 		new Map(
 			props.unroutedStudents.map((student) => [student.schoolId, student.schoolName]),
 		).entries(),
 	);
 
+	async function run(work: Promise<unknown>) {
+		try {
+			await work;
+			setError("");
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : "Action failed");
+		}
+		router.refresh();
+	}
+
+	function handleAssign(target: AssignmentTarget, draggedSource?: AssignmentSource) {
+		const source = draggedSource ?? armedSource ?? undefined;
+		if (!source) return;
+		const resolution = resolveStudentAssignment({ source, target });
+		setArmedSource(null);
+		setSearches({});
+		if (resolution.action === "assign") {
+			void run(
+				assignStudent({
+					routeId: resolution.routeId,
+					studentId: resolution.studentId,
+					responsibleStaffId: null,
+					seatNumber: resolution.seatNumber,
+				}),
+			);
+		} else if (resolution.action === "reposition") {
+			void run(
+				repositionRouteStopSeatAction({
+					stopId: resolution.stopId,
+					seatNumber: resolution.seatNumber,
+				}),
+			);
+		} else if (resolution.action === "move") {
+			void run(
+				moveStudentStop({
+					stopId: resolution.stopId,
+					targetRouteId: resolution.targetRouteId,
+					seatNumber: resolution.seatNumber,
+				}),
+			);
+		}
+	}
+
 	return (
 		<section className="space-y-4">
+			{error && <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">{error}</p>}
 			{props.editable && (
-				<form action={addRouteTableFromForm}>
-					<input type="hidden" name="planId" value={props.planId} />
-					<button type="submit" className={buttonClass}>
+				<div className="flex flex-wrap items-center gap-2">
+					<button
+						type="button"
+						className={buttonClass}
+						onClick={() => void run(addRouteTable({ planId: props.planId }))}
+					>
 						Add route lane
 					</button>
-				</form>
+					{armedSource && <span className="text-xs text-gray-500">Pick a seat…</span>}
+				</div>
 			)}
+
+			{props.editable && (props.unroutedStudents.length > 0 || props.staff.length > 0) && (
+				<div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+					<div className="flex flex-wrap gap-1">
+						{props.unroutedStudents.map((student) => {
+							const source: AssignmentSource = { kind: "unrouted", studentId: student.id };
+							const armed =
+								armedSource?.kind === "unrouted" && armedSource.studentId === student.id;
+							return (
+								<button
+									key={student.id}
+									type="button"
+									draggable
+									aria-pressed={armed}
+									className={`${chipClass} ${armed ? "ring-2 ring-[var(--color-primary)]" : ""}`}
+									onDragStart={(event) =>
+										event.dataTransfer.setData("application/json", JSON.stringify(source))
+									}
+									onClick={() => setArmedSource(armed ? null : source)}
+								>
+									{student.name} — {student.schoolName}
+								</button>
+							);
+						})}
+					</div>
+					<div className="flex flex-wrap gap-1">
+						{props.staff.map((member) => (
+							// biome-ignore lint/a11y/noStaticElementInteractions: dragging a staff chip onto a driver/helper row is a pointer-only shortcut; each lane's driver/helper selects remain the keyboard path.
+							<span
+								key={member.id}
+								draggable
+								className={chipClass}
+								onDragStart={(event) => event.dataTransfer.setData("text/staff-id", member.id)}
+							>
+								{member.name}
+							</span>
+						))}
+					</div>
+				</div>
+			)}
+
 			{props.routes.length === 0 ? (
 				<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
 					No route lanes yet.
@@ -108,6 +209,7 @@ export function RouteManagementBoard(props: BoardProps) {
 			) : (
 				<div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
 					{props.routes.map((route) => {
+						const laneEditable = props.editable && route.status !== "completed";
 						const routeStops = props.stops
 							.filter((stop) => stop.route_id === route.id)
 							.sort((a, b) => a.order_index - b.order_index);
@@ -116,168 +218,236 @@ export function RouteManagementBoard(props: BoardProps) {
 							props.assignments.find(
 								(item) => item.vehicle_id === route.vehicle_id && item.role === role,
 							)?.staff_id ?? "";
+						// Seat rows display the occupant, so resolve ids to names here.
+						const staffName = (staffId: string) =>
+							props.staff.find((member) => member.id === staffId)?.name ?? staffId;
+						const vehicle = props.vehicles.find((item) => item.id === route.vehicle_id);
+						const seatVehicle: SeatTemplateVehicle = {
+							id: vehicle?.id ?? "",
+							name: vehicle?.name ?? "",
+							// ponytail: a lane with no vehicle has no seat count of its own, so it
+							// shows only the seats already occupied until a vehicle is picked.
+							kids_seats:
+								vehicle?.kids_seats ??
+								routeStops.reduce((max, stop) => Math.max(max, stop.seat_number), 0),
+							booster_seats: vehicle?.booster_seats ?? 0,
+							license_plate: vehicle?.license_plate ?? null,
+						};
+						const template = buildSeatTemplate({
+							vehicle: seatVehicle,
+							stops: routeStops.map((stop) => ({
+								id: stop.id,
+								seat_number: stop.seat_number,
+								student_name_snapshot: stop.student_name_snapshot,
+								school_name_snapshot: stop.school_name_snapshot,
+								needs_booster: stop.needs_booster,
+								order_index: stop.order_index,
+								responsible_staff_id: stop.responsible_staff_id ?? null,
+								responsible_staff_name_snapshot: stop.responsible_staff_name_snapshot ?? null,
+								dismissal_time_snapshot: stop.dismissal_time_snapshot ?? null,
+								school_address_snapshot: stop.school_address_snapshot ?? null,
+							})),
+							driverStaffId: assignment("driver") ? staffName(assignment("driver")) : null,
+							helperStaffId: assignment("helper") ? staffName(assignment("helper")) : null,
+						});
+
 						return (
 							<article key={route.id} className="rounded-lg border border-gray-200 bg-white p-4">
 								<div className="mb-3 flex items-center justify-between gap-2">
-									<h2 className="font-semibold text-gray-900">Route {route.run_number}</h2>
-									{props.editable && route.status !== "completed" && (
-										<form action={removeRouteTableFromForm}>
-											<input type="hidden" name="routeId" value={route.id} />
-											<input
-												type="hidden"
-												name="confirmNonEmpty"
-												value={String(routeStops.length > 0)}
-											/>
-											<button type="submit" className={buttonClass}>
-												Remove lane
-											</button>
-										</form>
+									<h2 className="font-semibold text-gray-900">
+										Route {route.run_number}
+										{vehicle ? ` · ${vehicle.name}` : ""}
+									</h2>
+									{laneEditable && (
+										<button
+											type="button"
+											className={buttonClass}
+											onClick={() =>
+												void run(
+													removeRouteTable({
+														routeId: route.id,
+														confirmNonEmpty: routeStops.length > 0,
+													}),
+												)
+											}
+										>
+											Remove lane
+										</button>
 									)}
 									{props.finalized && <RouteExportButton routeId={route.id} />}
 								</div>
-								{props.editable && route.status !== "completed" && (
+
+								{laneEditable && (
 									<div className="mb-4 grid gap-2 sm:grid-cols-3">
-										<form action={setRouteVehicleFromForm} className="space-y-1">
-											<input type="hidden" name="routeId" value={route.id} />
-											<select
-												name="vehicleId"
-												defaultValue={route.vehicle_id ?? ""}
-												className={fieldClass}
-												aria-label="Vehicle"
-											>
-												<option value="">Select vehicle</option>
-												{props.vehicles.map((vehicle) => (
-													<option key={vehicle.id} value={vehicle.id}>
-														{vehicle.name}
-													</option>
-												))}
-											</select>
-											<button type="submit" className={buttonClass}>
-												Save vehicle
-											</button>
-										</form>
+										<select
+											defaultValue={route.vehicle_id ?? ""}
+											className={fieldClass}
+											aria-label="Vehicle"
+											onChange={(event) =>
+												void run(
+													setRouteVehicle({
+														routeId: route.id,
+														vehicleId: event.target.value || null,
+													}),
+												)
+											}
+										>
+											<option value="">Select vehicle</option>
+											{props.vehicles.map((item) => (
+												<option key={item.id} value={item.id}>
+													{item.name}
+												</option>
+											))}
+										</select>
 										{(["driver", "helper"] as const).map((role) => (
-											<form key={role} action={setRouteStaffFromForm} className="space-y-1">
-												<input type="hidden" name="routeId" value={route.id} />
-												<input type="hidden" name="role" value={role} />
-												<select
-													name="staffId"
-													defaultValue={assignment(role)}
-													disabled={!route.vehicle_id}
-													className={fieldClass}
-													aria-label={role}
-												>
-													<option value="">Select {role}</option>
-													{props.staff
-														.filter((member) => member.capabilities.includes(role))
-														.map((member) => (
-															<option key={member.id} value={member.id}>
-																{member.name}
-															</option>
-														))}
-												</select>
-												<button type="submit" disabled={!route.vehicle_id} className={buttonClass}>
-													Save {role}
-												</button>
-											</form>
+											<select
+												key={role}
+												defaultValue={assignment(role)}
+												disabled={!route.vehicle_id}
+												className={fieldClass}
+												aria-label={role}
+												onChange={(event) =>
+													void run(
+														setRouteStaff({
+															routeId: route.id,
+															role,
+															staffId: event.target.value || null,
+														}),
+													)
+												}
+											>
+												<option value="">Select {role}</option>
+												{props.staff
+													.filter((member) => member.capabilities.includes(role))
+													.map((member) => (
+														<option key={member.id} value={member.id}>
+															{member.name}
+														</option>
+													))}
+											</select>
 										))}
 									</div>
 								)}
 
-								<div className="space-y-2">
-									{routeStops.length === 0 && (
-										<p className="text-xs text-gray-500">No students assigned</p>
-									)}
-									{routeStops.map((stop, index) => (
-										<div key={stop.id} className="rounded border border-gray-100 p-2 text-xs">
-											<div className="font-medium text-gray-900">{stop.student_name_snapshot}</div>
-											<div className="text-gray-500">
-												{stop.school_name_snapshot} · Seat {stop.seat_number}
-												{stop.needs_booster ? " · Booster" : ""}
-											</div>
-											{props.editable && route.status !== "completed" && (
-												<div className="mt-2 flex flex-wrap gap-1">
-													<ReorderForm
+								<div className="divide-y divide-gray-100">
+									{template.map((row) => {
+										const seatNumber = row.kind === "student" ? row.seatNumber : null;
+										const stopId = row.kind === "student" ? row.stopId : null;
+										const staffRole = row.kind === "student" ? null : row.kind;
+										const orderPosition = stopId ? stopIds.indexOf(stopId) : -1;
+										const searchKey = `${route.id}:${seatNumber ?? staffRole}`;
+										const query = searches[searchKey] ?? "";
+										return (
+											<div key={searchKey} className="flex items-center gap-1">
+												<div className="flex-1">
+													<SeatRow
+														row={row}
 														routeId={route.id}
-														orderedStopIds={moved(stopIds, index, -1)}
-														label="Move up"
-														disabled={index === 0}
+														editable={laneEditable}
+														armed={armedSource !== null}
+														onAssign={(seat, source) =>
+															handleAssign(
+																{
+																	routeId: route.id,
+																	seatNumber: seat,
+																	occupiedByStopId: stopId,
+																},
+																source,
+															)
+														}
+														onAssignStaff={
+															staffRole
+																? (staffId) => {
+																		if (!route.vehicle_id) return;
+																		void run(
+																			setRouteStaff({
+																				routeId: route.id,
+																				role: staffRole,
+																				staffId,
+																			}),
+																		);
+																	}
+																: undefined
+														}
+														searchResults={
+															query.trim()
+																? filterByName(props.unroutedStudents, query).map((student) => ({
+																		id: student.id,
+																		name: student.name,
+																		subtitle: student.schoolName,
+																	}))
+																: []
+														}
+														onSearch={(value) =>
+															setSearches((current) => ({ ...current, [searchKey]: value }))
+														}
+														onSelectSearchResult={
+															seatNumber === null
+																? undefined
+																: (studentId) =>
+																		handleAssign(
+																			{
+																				routeId: route.id,
+																				seatNumber,
+																				occupiedByStopId: stopId,
+																			},
+																			{ kind: "unrouted", studentId },
+																		)
+														}
+														onMoveUp={
+															orderPosition < 0
+																? undefined
+																: () =>
+																		void run(
+																			reorderRouteStops({
+																				routeId: route.id,
+																				orderedStopIds: moved(stopIds, orderPosition, -1),
+																			}),
+																		)
+														}
+														onMoveDown={
+															orderPosition < 0
+																? undefined
+																: () =>
+																		void run(
+																			reorderRouteStops({
+																				routeId: route.id,
+																				orderedStopIds: moved(stopIds, orderPosition, 1),
+																			}),
+																		)
+														}
+														canMoveUp={orderPosition > 0}
+														canMoveDown={orderPosition < stopIds.length - 1}
 													/>
-													<ReorderForm
-														routeId={route.id}
-														orderedStopIds={moved(stopIds, index, 1)}
-														label="Move down"
-														disabled={index === routeStops.length - 1}
-													/>
-													<form action={removeStudentStopFromForm}>
-														<input type="hidden" name="stopId" value={stop.id} />
-														<button type="submit" className={buttonClass}>
-															Remove student
-														</button>
-													</form>
-													{props.routes.length > 1 && (
-														<form action={moveStudentStopFromForm}>
-															<input type="hidden" name="stopId" value={stop.id} />
-															<select
-																name="targetRouteId"
-																className={fieldClass}
-																aria-label="Move to route"
-															>
-																{props.routes
-																	.filter((target) => target.id !== route.id)
-																	.map((target) => (
-																		<option key={target.id} value={target.id}>
-																			Route {target.run_number}
-																		</option>
-																	))}
-															</select>
-															<button type="submit" className={buttonClass}>
-																Move route
-															</button>
-														</form>
-													)}
 												</div>
-											)}
-										</div>
-									))}
+												{laneEditable && stopId && (
+													<button
+														type="button"
+														className={buttonClass}
+														onClick={() => void run(removeStudentStop({ stopId }))}
+													>
+														Remove
+													</button>
+												)}
+											</div>
+										);
+									})}
 								</div>
 
-								{props.editable &&
-									route.status !== "completed" &&
-									props.unroutedStudents.length > 0 && (
-										<div className="mt-4 grid gap-2 sm:grid-cols-2">
-											<form action={assignStudentFromForm}>
-												<input type="hidden" name="routeId" value={route.id} />
-												<select
-													name="studentId"
-													className={fieldClass}
-													aria-label="Unrouted student"
-												>
-													{props.unroutedStudents.map((student) => (
-														<option key={student.id} value={student.id}>
-															{student.name} — {student.schoolName}
-														</option>
-													))}
-												</select>
-												<button type="submit" className={buttonClass}>
-													Assign student
-												</button>
-											</form>
-											<form action={assignSchoolGroupFromForm}>
-												<input type="hidden" name="routeId" value={route.id} />
-												<select name="schoolId" className={fieldClass} aria-label="Unrouted school">
-													{schools.map(([id, name]) => (
-														<option key={id} value={id}>
-															{name}
-														</option>
-													))}
-												</select>
-												<button type="submit" className={buttonClass}>
-													Assign school
-												</button>
-											</form>
-										</div>
-									)}
+								{laneEditable && schools.length > 0 && (
+									<div className="mt-4 flex flex-wrap items-center gap-1">
+										{schools.map(([schoolId, name]) => (
+											<button
+												key={schoolId}
+												type="button"
+												className={buttonClass}
+												onClick={() => void run(assignSchoolGroup({ routeId: route.id, schoolId }))}
+											>
+												Assign all {name}
+											</button>
+										))}
+									</div>
+								)}
 							</article>
 						);
 					})}
