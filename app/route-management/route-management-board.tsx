@@ -247,8 +247,8 @@ export function RouteManagementBoard(props: BoardProps) {
 								dismissal_time_snapshot: stop.dismissal_time_snapshot ?? null,
 								school_address_snapshot: stop.school_address_snapshot ?? null,
 							})),
-							driverStaffId: assignment("driver") ? staffName(assignment("driver")) : null,
-							helperStaffId: assignment("helper") ? staffName(assignment("helper")) : null,
+							driverStaffName: assignment("driver") ? staffName(assignment("driver")) : null,
+							helperStaffName: assignment("helper") ? staffName(assignment("helper")) : null,
 						});
 
 						return (

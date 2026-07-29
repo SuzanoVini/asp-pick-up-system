@@ -74,7 +74,7 @@ describe("SeatRow", () => {
 	it("renders helper and driver rows even when unoccupied", () => {
 		const html = renderToStaticMarkup(
 			createElement(SeatRow, {
-				row: { kind: "driver", seatNumber: null, occupantStaffId: null },
+				row: { kind: "driver", seatNumber: null, occupantStaffName: null },
 				routeId: "route-1",
 				editable: true,
 				armed: false,
@@ -89,7 +89,7 @@ describe("SeatRow", () => {
 	it("shows the assigned staff member on a driver row", () => {
 		const html = renderToStaticMarkup(
 			createElement(SeatRow, {
-				row: { kind: "driver", seatNumber: null, occupantStaffId: "Jack" },
+				row: { kind: "driver", seatNumber: null, occupantStaffName: "Jack" },
 				routeId: "route-1",
 				editable: true,
 				armed: false,

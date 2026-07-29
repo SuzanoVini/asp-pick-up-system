@@ -36,7 +36,7 @@ export type SeatRow =
 	| {
 			kind: "helper" | "driver";
 			seatNumber: null;
-			occupantStaffId: string | null;
+			occupantStaffName: string | null;
 	  };
 
 /**
@@ -47,10 +47,10 @@ export type SeatRow =
 export function buildSeatTemplate(params: {
 	vehicle: SeatTemplateVehicle;
 	stops: SeatTemplateStop[];
-	driverStaffId: string | null;
-	helperStaffId: string | null;
+	driverStaffName: string | null;
+	helperStaffName: string | null;
 }): SeatRow[] {
-	const { vehicle, stops, driverStaffId, helperStaffId } = params;
+	const { vehicle, stops, driverStaffName, helperStaffName } = params;
 	const stopsBySeat = new Map(stops.map((stop) => [stop.seat_number, stop]));
 
 	const studentRows: SeatRow[] = Array.from({ length: vehicle.kids_seats }, (_, index) => {
@@ -73,7 +73,7 @@ export function buildSeatTemplate(params: {
 
 	return [
 		...studentRows,
-		{ kind: "helper", seatNumber: null, occupantStaffId: helperStaffId },
-		{ kind: "driver", seatNumber: null, occupantStaffId: driverStaffId },
+		{ kind: "helper", seatNumber: null, occupantStaffName: helperStaffName },
+		{ kind: "driver", seatNumber: null, occupantStaffName: driverStaffName },
 	];
 }

@@ -72,7 +72,7 @@ export function SeatRow({
 				}
 			>
 				<span className="font-semibold uppercase text-[var(--color-muted)]">{row.kind}</span>
-				<span>{row.occupantStaffId ?? "open"}</span>
+				<span>{row.occupantStaffName ?? "open"}</span>
 			</div>
 		);
 	}

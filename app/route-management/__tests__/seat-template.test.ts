@@ -29,8 +29,8 @@ describe("buildSeatTemplate", () => {
 		const rows = buildSeatTemplate({
 			vehicle,
 			stops: [],
-			driverStaffId: null,
-			helperStaffId: null,
+			driverStaffName: null,
+			helperStaffName: null,
 		});
 
 		expect(rows.map((row) => row.kind)).toEqual([
@@ -47,8 +47,8 @@ describe("buildSeatTemplate", () => {
 		const rows = buildSeatTemplate({
 			vehicle,
 			stops: [stop()],
-			driverStaffId: null,
-			helperStaffId: null,
+			driverStaffName: null,
+			helperStaffName: null,
 		});
 
 		expect(rows[1]).toMatchObject({
@@ -67,8 +67,8 @@ describe("buildSeatTemplate", () => {
 		const rows = buildSeatTemplate({
 			vehicle,
 			stops: [stop({ id: "stop-a", seat_number: 1 }), stop({ id: "stop-c", seat_number: 3 })],
-			driverStaffId: null,
-			helperStaffId: null,
+			driverStaffName: null,
+			helperStaffName: null,
 		});
 
 		expect(rows.slice(0, 3).map((row) => (row.kind === "student" ? row.stopId : null))).toEqual([
@@ -82,8 +82,8 @@ describe("buildSeatTemplate", () => {
 		const rows = buildSeatTemplate({
 			vehicle,
 			stops: [stop({ id: "stop-overflow", seat_number: 9 })],
-			driverStaffId: null,
-			helperStaffId: null,
+			driverStaffName: null,
+			helperStaffName: null,
 		});
 
 		expect(rows.filter((row) => row.kind === "student")).toHaveLength(3);
@@ -96,11 +96,13 @@ describe("buildSeatTemplate", () => {
 		const rows = buildSeatTemplate({
 			vehicle,
 			stops: [],
-			driverStaffId: "staff-1",
-			helperStaffId: null,
+			driverStaffName: "staff-1",
+			helperStaffName: null,
 		});
 
-		expect(rows.find((row) => row.kind === "driver")).toMatchObject({ occupantStaffId: "staff-1" });
-		expect(rows.find((row) => row.kind === "helper")).toMatchObject({ occupantStaffId: null });
+		expect(rows.find((row) => row.kind === "driver")).toMatchObject({
+			occupantStaffName: "staff-1",
+		});
+		expect(rows.find((row) => row.kind === "helper")).toMatchObject({ occupantStaffName: null });
 	});
 });
