@@ -150,10 +150,26 @@ export function SeatRow({
 							className="mt-1 flex items-center gap-2 text-[10px]"
 						>
 							<span>Order: {row.orderIndex}</span>
-							<button type="button" disabled={!canMoveUp} onClick={onMoveUp}>
+							{/* stopPropagation: the row itself is a click-to-assign target when a
+							    source is armed, so a reorder click must not also assign here. */}
+							<button
+								type="button"
+								disabled={!canMoveUp}
+								onClick={(event) => {
+									event.stopPropagation();
+									onMoveUp?.();
+								}}
+							>
 								Move up
 							</button>
-							<button type="button" disabled={!canMoveDown} onClick={onMoveDown}>
+							<button
+								type="button"
+								disabled={!canMoveDown}
+								onClick={(event) => {
+									event.stopPropagation();
+									onMoveDown?.();
+								}}
+							>
 								Move down
 							</button>
 						</div>
@@ -163,6 +179,9 @@ export function SeatRow({
 				<input
 					className="flex-1 border-none bg-transparent text-xs outline-none"
 					placeholder="Drop, click, or type to assign…"
+					// stopPropagation: clicking into the field to type must not be
+					// swallowed by the row's click-to-assign handler.
+					onClick={(event) => event.stopPropagation()}
 					onChange={(event) => onSearch?.(event.target.value)}
 				/>
 			) : (
