@@ -59,7 +59,7 @@ describe("route management Supabase queries", () => {
 		expect(calls.some((call) => call.args.includes("weekday"))).toBe(false);
 	});
 
-	it("returns only finalized operational history with an optional exact date", async () => {
+	it("returns operational history for every plan, with an optional exact date", async () => {
 		const { client, calls } = fakeSupabase();
 
 		await getHistoryPlans(client, { date: "2026-07-03", limit: 12 });
@@ -73,7 +73,9 @@ describe("route management Supabase queries", () => {
 					call.args[0].includes("asp_routes"),
 			),
 		).toBe(false);
-		expect(calls).toContainEqual({ method: "eq", args: ["status", "finalized"] });
+		// Exporting no longer finalizes, so history must not filter by status —
+		// otherwise the page is permanently empty.
+		expect(calls.some((call) => call.method === "eq" && call.args[0] === "status")).toBe(false);
 		expect(calls).toContainEqual({ method: "eq", args: ["plan_date", "2026-07-03"] });
 		expect(calls).toContainEqual({ method: "limit", args: [12] });
 	});

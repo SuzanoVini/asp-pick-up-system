@@ -57,7 +57,7 @@ export async function exportRoutePdf(routeId: string) {
 		entityType: "route",
 		entityId: routeId,
 		action: "update",
-		changes: { exported: true, status: "completed" },
+		changes: { exported: true },
 		performedBy: user.id,
 	});
 

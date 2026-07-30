@@ -123,7 +123,6 @@ describe("RouteManagementBoard", () => {
 			createElement(RouteManagementBoard, {
 				planId: "plan-1",
 				editable: true,
-				finalized: false,
 				routes: [
 					{
 						id: "route-1",

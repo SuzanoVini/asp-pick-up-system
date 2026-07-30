@@ -6,7 +6,6 @@ import {
 	assignSchoolGroup,
 	assignStudent,
 	createOrRefreshRoutePlan,
-	finalizeRoutePlan,
 	moveStudentStop,
 	removeRouteTable,
 	removeStudentStop,
@@ -77,7 +76,7 @@ const { refreshRouteDistances } = jest.requireMock("../../lib/routes/refresh-dis
 const { getAuthorizedUser, requireOwner } = jest.requireMock(
 	"../../lib/security/authorization",
 ) as { getAuthorizedUser: jest.Mock; requireOwner: jest.Mock };
-const { finalizePlan, getPlanById, getPlanForDate, replacePlanSnapshot } = jest.requireMock(
+const { getPlanById, getPlanForDate, replacePlanSnapshot } = jest.requireMock(
 	"../../lib/supabase/route-plans",
 ) as {
 	finalizePlan: jest.Mock;
@@ -117,7 +116,6 @@ const { getStaffById } = jest.requireMock("../../lib/supabase/staff") as {
 	getStaffById: jest.Mock;
 };
 const {
-	getAssignmentsForDate,
 	getAvailabilityForDate,
 	removeAssignmentForVehicleDateRole,
 	upsertAssignmentForVehicleDate,
@@ -847,24 +845,5 @@ describe("guarded manual route editing", () => {
 		await expect(setRouteVehicle({ routeId, vehicleId: null })).rejects.toBe(rpcError);
 		expect(refreshRouteDistances).not.toHaveBeenCalled();
 		expect(revalidatePath).not.toHaveBeenCalled();
-	});
-
-	it("requires current warnings to be acknowledged before finalizing", async () => {
-		jest.mocked(getRoutesForPlan).mockResolvedValue([]);
-		jest.mocked(getStopsForPlan).mockResolvedValue([]);
-		jest.mocked(getPlanStudents).mockResolvedValue([routableStudent]);
-		jest.mocked(getAssignmentsForDate).mockResolvedValue([]);
-
-		await expect(
-			finalizeRoutePlan({ planId, acknowledgedWarnings: [], override: null }),
-		).rejects.toThrow("acknowledged");
-		expect(finalizePlan).not.toHaveBeenCalled();
-
-		await finalizeRoutePlan({
-			planId,
-			acknowledgedWarnings: ["unrouted_students"],
-			override: null,
-		});
-		expect(finalizePlan).toHaveBeenCalledWith(client, planId, ["unrouted_students"], [], null);
 	});
 });

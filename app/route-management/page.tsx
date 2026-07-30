@@ -1,6 +1,5 @@
 import { createOrRefreshRoutePlan } from "../actions/route-management";
 import { isoDateSchema } from "../lib/schemas/route-management-schemas";
-import { FinalizePlanForm } from "./finalize-plan-form";
 import { loadRouteManagementPageData } from "./page-data";
 import { ReadinessPanel } from "./readiness-panel";
 import { RouteManagementBoard } from "./route-management-board";
@@ -74,8 +73,7 @@ export default async function RouteManagementPage({ searchParams }: PageProps) {
 					<div className="space-y-4 lg:col-span-3">
 						<RouteManagementBoard
 							planId={plan.id}
-							editable={plan.status === "draft"}
-							finalized={plan.status === "finalized"}
+							editable
 							routes={editor.routes}
 							stops={editor.stops}
 							unroutedStudents={view.unroutedStudents}
@@ -87,9 +85,6 @@ export default async function RouteManagementPage({ searchParams }: PageProps) {
 					<div className="space-y-4">
 						<UnroutedStudents students={view.unroutedStudents} />
 						<ReadinessPanel result={view.readiness} />
-						{plan.status === "draft" && (
-							<FinalizePlanForm planId={plan.id} readiness={view.readiness} />
-						)}
 					</div>
 				</div>
 			) : (

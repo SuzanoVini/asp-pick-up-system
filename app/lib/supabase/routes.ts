@@ -146,11 +146,15 @@ export async function updateRouteTotalDistance(
 	return data;
 }
 
+/**
+ * Records that a route's PDF was generated. Deliberately does NOT change
+ * `status`: exporting is the commit point, not a lock. Routes stay editable so
+ * a plan can be adjusted and re-exported when the day changes.
+ */
 export async function markRouteExported(supabase: SupabaseClient, id: string, userId: string) {
 	const { data, error } = await supabase
 		.from("asp_routes")
 		.update({
-			status: "completed",
 			exported_at: new Date().toISOString(),
 			exported_by: userId,
 		})

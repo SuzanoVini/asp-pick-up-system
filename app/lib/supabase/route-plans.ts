@@ -71,10 +71,12 @@ export async function getHistoryPlans(
 	supabase: SupabaseClient,
 	options: { date?: string; limit: number },
 ) {
+	// Plans are no longer "finalized" — exporting a lane's PDF is the commit
+	// point and does not lock anything, so history lists every persisted plan
+	// and each lane reports its own export state.
 	let query = supabase
 		.from("asp_route_plans")
 		.select("*")
-		.eq("status", "finalized")
 		.order("plan_date", { ascending: false })
 		.limit(options.limit);
 	if (options.date) query = query.eq("plan_date", options.date);

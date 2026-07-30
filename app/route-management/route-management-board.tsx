@@ -65,7 +65,6 @@ interface VehicleOption {
 interface BoardProps {
 	planId: string;
 	editable: boolean;
-	finalized?: boolean;
 	routes: RouteOption[];
 	stops: StopOption[];
 	unroutedStudents: StudentOption[];
@@ -274,7 +273,9 @@ export function RouteManagementBoard(props: BoardProps) {
 											Remove lane
 										</button>
 									)}
-									{props.finalized && <RouteExportButton routeId={route.id} />}
+									{/* Export is the commit point and stays available: generating the
+									    PDF records the run without freezing the lane. */}
+									<RouteExportButton routeId={route.id} />
 								</div>
 
 								{laneEditable && (

@@ -116,7 +116,7 @@ export default async function RouteHistoryPage({ searchParams }: PageProps) {
 		routeStops.push(stop);
 		stopsByRoute.set(stop.route_id, routeStops);
 	}
-	const finalizedAt = plan ? formatTimestamp(plan.finalized_at) : null;
+	const exportedLanes = (routes ?? []).filter((route) => route.exported_at).length;
 
 	return (
 		<div className="space-y-6">
@@ -124,7 +124,7 @@ export default async function RouteHistoryPage({ searchParams }: PageProps) {
 				<div>
 					<h1 className="text-2xl font-bold text-gray-900">Route History</h1>
 					<p className="text-sm text-gray-500">
-						Persisted route plans as they were finalized and exported.
+						Persisted route plans and when each lane was exported.
 					</p>
 				</div>
 				<form className="flex items-center gap-2">
@@ -154,9 +154,7 @@ export default async function RouteHistoryPage({ searchParams }: PageProps) {
 											{format(new Date(`${plan.plan_date}T00:00:00`), "EEEE, MMMM d, yyyy")}
 										</p>
 										<p className="mt-1 text-xs text-gray-500">
-											{plan.status === "finalized" && finalizedAt
-												? `Finalized ${finalizedAt}`
-												: "Draft plan (not finalized)"}
+											{`${exportedLanes} of ${(routes ?? []).length} lane(s) exported`}
 										</p>
 									</div>
 									<div className="flex flex-wrap gap-2 text-xs">
@@ -188,7 +186,7 @@ export default async function RouteHistoryPage({ searchParams }: PageProps) {
 						<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
 							{requestedDate.success
 								? `No route plan exists for ${requestedDate.data}.`
-								: "No finalized route plans yet. Finalize a plan in Route Management to see it here."}
+								: "No route plans yet. Build one in Route Management to see it here."}
 						</div>
 					)}
 				</div>
@@ -196,11 +194,11 @@ export default async function RouteHistoryPage({ searchParams }: PageProps) {
 				<div>
 					<div className="rounded-lg border border-gray-200 bg-white">
 						<div className="border-b border-gray-100 px-4 py-3">
-							<h2 className="font-semibold text-gray-950">Finalized Plans</h2>
+							<h2 className="font-semibold text-gray-950">Recent Plans</h2>
 						</div>
 						<div className="divide-y divide-gray-100">
 							{recentPlans.length === 0 && (
-								<p className="px-4 py-3 text-sm text-gray-500">Nothing finalized yet.</p>
+								<p className="px-4 py-3 text-sm text-gray-500">No plans yet.</p>
 							)}
 							{recentPlans.map((recent) => (
 								<Link
