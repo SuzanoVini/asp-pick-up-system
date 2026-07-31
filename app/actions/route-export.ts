@@ -1,6 +1,7 @@
 "use server";
 
 import { format } from "date-fns";
+import { zipSync } from "fflate";
 import { revalidatePath } from "next/cache";
 import { writeRouteAuditEvent } from "../lib/routes/audit";
 import type { RouteStop } from "../lib/routes/types";
@@ -10,13 +11,15 @@ import * as routeStopsDb from "../lib/supabase/route-stops";
 import * as routesDb from "../lib/supabase/routes";
 import { createClient } from "../lib/supabase/server";
 
-export async function exportRoutePdf(routeId: string) {
-	const supabase = await createClient();
-	const user = await getAuthorizedUser(supabase);
-	requireOwner(user);
+type RouteRow = Awaited<ReturnType<typeof routesDb.getRouteById>>;
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
-	const route = await routesDb.getRouteById(supabase, routeId);
-	const stopsRaw = await routeStopsDb.getStopsForRoute(supabase, routeId);
+/**
+ * Renders one lane to PDF and records the export. Shared by the per-lane export
+ * (route history) and the plan-wide zip export (route management).
+ */
+async function exportOneRoute(supabase: SupabaseClient, route: RouteRow, userId: string) {
+	const stopsRaw = await routeStopsDb.getStopsForRoute(supabase, route.id);
 
 	const stops: RouteStop[] = (stopsRaw ?? []).map((s) => ({
 		id: s.id,
@@ -51,19 +54,15 @@ export async function exportRoutePdf(routeId: string) {
 		totalDistanceKm: route.total_distance_km,
 	});
 
-	await routesDb.markRouteExported(supabase, routeId, user.id);
+	await routesDb.markRouteExported(supabase, route.id, userId);
 
 	await writeRouteAuditEvent(supabase, {
 		entityType: "route",
-		entityId: routeId,
+		entityId: route.id,
 		action: "update",
 		changes: { exported: true },
-		performedBy: user.id,
+		performedBy: userId,
 	});
-
-	revalidatePath("/route-management");
-	revalidatePath(`/route-management?date=${route.date}`);
-	revalidatePath("/route-history");
 
 	const filename = buildRoutePdfFilename({
 		driverName: route.driver_name_snapshot,
@@ -73,9 +72,60 @@ export async function exportRoutePdf(routeId: string) {
 		runNumber: route.run_number,
 	});
 
+	return { pdfBuffer, filename };
+}
+
+function revalidateExport(date: string) {
+	revalidatePath("/route-management");
+	revalidatePath(`/route-management?date=${date}`);
+	revalidatePath("/route-history");
+}
+
+export async function exportRoutePdf(routeId: string) {
+	const supabase = await createClient();
+	const user = await getAuthorizedUser(supabase);
+	requireOwner(user);
+
+	const route = await routesDb.getRouteById(supabase, routeId);
+	const { pdfBuffer, filename } = await exportOneRoute(supabase, route, user.id);
+
+	revalidateExport(route.date);
+
 	return {
 		buffer: Array.from(pdfBuffer),
 		filename,
 		contentType: "application/pdf",
+	};
+}
+
+/**
+ * Exports every lane of a day's plan in one click: one PDF per lane, bundled
+ * into a single zip so the whole day downloads and prints as one unit.
+ */
+export async function exportPlanPdfs(planId: string) {
+	const supabase = await createClient();
+	const user = await getAuthorizedUser(supabase);
+	requireOwner(user);
+
+	const routes = await routesDb.getRoutesForPlan(supabase, planId);
+	if (routes.length === 0) throw new Error("No route lanes to export for this date");
+
+	const files: Record<string, Uint8Array> = {};
+	for (const route of routes) {
+		const { pdfBuffer, filename } = await exportOneRoute(supabase, route, user.id);
+		// ponytail: identical driver+vehicle+run would collide; suffix on collision
+		// rather than tracking uniqueness up front.
+		let name = filename;
+		for (let n = 2; files[name]; n += 1) name = filename.replace(/\.pdf$/, `-${n}.pdf`);
+		files[name] = new Uint8Array(pdfBuffer);
+	}
+
+	const date = routes[0].date;
+	revalidateExport(date);
+
+	return {
+		buffer: Array.from(zipSync(files)),
+		filename: `asp-routes-${date}.zip`,
+		contentType: "application/zip",
 	};
 }

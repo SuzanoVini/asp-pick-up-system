@@ -19,7 +19,7 @@ import {
 	type AssignmentTarget,
 	resolveStudentAssignment,
 } from "./assignment-resolver";
-import { RouteExportButton } from "./route-export-button";
+import { PlanExportButton } from "./route-export-button";
 import { filterByName } from "./search-filter";
 import { SeatRow } from "./seat-row";
 import { buildSeatTemplate, type SeatTemplateVehicle } from "./seat-template";
@@ -158,6 +158,11 @@ export function RouteManagementBoard(props: BoardProps) {
 						Add route lane
 					</button>
 					{armedSource && <span className="text-xs text-gray-500">Pick a seat…</span>}
+					{/* Export is the commit point for the whole day: one click bundles every
+					    lane's PDF into a single zip. */}
+					<div className="ml-auto">
+						<PlanExportButton planId={props.planId} />
+					</div>
 				</div>
 			)}
 
@@ -273,9 +278,6 @@ export function RouteManagementBoard(props: BoardProps) {
 											Remove lane
 										</button>
 									)}
-									{/* Export is the commit point and stays available: generating the
-									    PDF records the run without freezing the lane. */}
-									<RouteExportButton routeId={route.id} />
 								</div>
 
 								{laneEditable && (
