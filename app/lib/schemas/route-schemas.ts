@@ -9,9 +9,9 @@ export const generateRouteSchema = z.object({
 });
 
 export const createRouteStopSchema = z.object({
-	route_id: z.string().uuid(),
-	student_id: z.string().uuid(),
-	school_id: z.string().uuid(),
+	route_id: z.guid(),
+	student_id: z.guid(),
+	school_id: z.guid(),
 	seat_number: z.number().int().positive("Seat number must be a positive integer"),
 	order_index: z.number().int().nonnegative(),
 	needs_booster: z.boolean().default(false),
@@ -31,14 +31,14 @@ export const updateRouteStopSchema = z.object({
 });
 
 export const moveStopSchema = z.object({
-	stop_id: z.string().uuid(),
-	target_route_id: z.string().uuid(),
+	stop_id: z.guid(),
+	target_route_id: z.guid(),
 	new_seat_number: z.number().int().positive(),
 	new_order_index: z.number().int().nonnegative(),
 });
 
 export const vehicleAssignmentSchema = z.object({
-	vehicle_id: z.string().uuid(),
+	vehicle_id: z.guid(),
 });
 
 const validTransitions: Record<string, string[]> = {
@@ -50,7 +50,7 @@ const validTransitions: Record<string, string[]> = {
 
 export const routeStatusTransitionSchema = z
 	.object({
-		route_id: z.string().uuid(),
+		route_id: z.guid(),
 		current_status: routeStatusEnum,
 		new_status: routeStatusEnum,
 	})
@@ -65,13 +65,13 @@ export const routeStatusTransitionSchema = z
 	);
 
 export const readinessOverrideSchema = z.object({
-	route_id: z.string().uuid(),
+	route_id: z.guid(),
 	overridden_checks: z.array(z.string().min(1)).min(1, "Must specify which checks to override"),
 	reason: z.string().trim().min(1, "Override reason is required").max(2000),
 });
 
 export const pdfExportRequestSchema = z.object({
-	route_id: z.string().uuid(),
+	route_id: z.guid(),
 });
 
 export type GenerateRouteInput = z.infer<typeof generateRouteSchema>;

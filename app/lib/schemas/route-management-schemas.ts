@@ -24,7 +24,7 @@ export const isoDateSchema = z
 	.string()
 	.regex(isoDateRegex, "Date must be YYYY-MM-DD format")
 	.refine(isCalendarDate, "Date must be a valid calendar date");
-export const uuidSchema = z.string().uuid();
+export const uuidSchema = z.guid();
 export const nullableUuidSchema = uuidSchema.nullable();
 
 const readinessCheckNamesSchema = z

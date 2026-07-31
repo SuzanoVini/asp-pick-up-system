@@ -1,4 +1,9 @@
 import {
+	assignSchoolGroupSchema,
+	assignStudentSchema,
+	uuidSchema,
+} from "../../schemas/route-management-schemas";
+import {
 	createRouteStopSchema,
 	generateRouteSchema,
 	moveStopSchema,
@@ -6,6 +11,43 @@ import {
 	routeStatusTransitionSchema,
 } from "../../schemas/route-schemas";
 import { staffAssignmentSchema, staffAvailabilityToggleSchema } from "../../schemas/staff-schedule";
+
+describe("uuidSchema", () => {
+	// Seeded rows use ids like 10000000-0000-0000-0000-000000000001: valid Postgres
+	// uuids, but version/variant nibbles are 0, so a strict RFC-4122 check rejects
+	// them and every assignment action fails against real data.
+	const seededStudentId = "10000000-0000-0000-0000-000000000001";
+	const seededSchoolId = "20000000-0000-0000-0000-000000000003";
+	const generatedId = "3f2a1b4c-5d6e-4f7a-8b9c-0d1e2f3a4b5c";
+
+	it("accepts seeded ids whose version nibble is zero", () => {
+		expect(uuidSchema.safeParse(seededStudentId).success).toBe(true);
+	});
+
+	it("accepts gen_random_uuid() output", () => {
+		expect(uuidSchema.safeParse(generatedId).success).toBe(true);
+	});
+
+	it("rejects anything that is not uuid-shaped", () => {
+		expect(uuidSchema.safeParse("").success).toBe(false);
+		expect(uuidSchema.safeParse("not-a-uuid").success).toBe(false);
+		expect(uuidSchema.safeParse("10000000-0000-0000-0000-00000000000").success).toBe(false);
+	});
+
+	it("lets seeded students and schools through the assignment actions", () => {
+		expect(
+			assignStudentSchema.safeParse({
+				routeId: generatedId,
+				studentId: seededStudentId,
+				responsibleStaffId: null,
+				seatNumber: 3,
+			}).success,
+		).toBe(true);
+		expect(
+			assignSchoolGroupSchema.safeParse({ routeId: generatedId, schoolId: seededSchoolId }).success,
+		).toBe(true);
+	});
+});
 
 describe("generateRouteSchema", () => {
 	it("accepts a valid ISO date", () => {

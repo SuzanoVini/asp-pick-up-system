@@ -6,7 +6,7 @@ export const enrollmentStatusEnum = z.enum(["pending", "active", "cancelled"]);
 
 export const createEnrollmentSchema = z
 	.object({
-		student_id: z.string().uuid(),
+		student_id: z.guid(),
 		start_date: z.coerce.date(),
 		end_date: z.coerce.date().nullable().optional(),
 		contract_days: z.array(dayOfWeek).min(1).max(5),

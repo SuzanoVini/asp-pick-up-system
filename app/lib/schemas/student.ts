@@ -4,7 +4,7 @@ export const studentStatusEnum = z.enum(["active", "pending", "former"]);
 
 export const createStudentSchema = z.object({
 	name: z.string().trim().min(1).max(500),
-	school_id: z.string().uuid().nullable().optional(),
+	school_id: z.guid().nullable().optional(),
 	date_of_birth: z.coerce.date().nullable().optional(),
 	home_address: z.string().trim().max(2000).nullable().optional(),
 	drop_off_only: z.boolean().default(false),
