@@ -1,40 +1,107 @@
 "use client";
 
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { loadCollapsedGroups, saveCollapsedGroups } from "./collapsed-groups-storage";
 import { Logo } from "./logo";
-import { navItems } from "./navigation";
+import { DAILY_NAV_ITEMS, DASHBOARD_NAV_ITEM, NAV_GROUPS, type NavItem } from "./navigation";
+
+function NavLink({
+	item,
+	active,
+	onNavigate,
+}: {
+	item: NavItem;
+	active: boolean;
+	onNavigate: () => void;
+}) {
+	const Icon = item.icon;
+	return (
+		<Link
+			href={item.href}
+			onClick={onNavigate}
+			className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+			style={{
+				backgroundColor: active ? "var(--color-sidebar-active)" : "transparent",
+				color: active ? "var(--color-primary-foreground)" : "var(--color-sidebar-text)",
+			}}
+		>
+			<Icon size={18} />
+			<span>{item.label}</span>
+		</Link>
+	);
+}
 
 export function Sidebar() {
 	const pathname = usePathname();
 	const [mobileOpen, setMobileOpen] = useState(false);
+	const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(new Set());
 
-	const isActive = (href: string) => {
-		if (href === "/") return pathname === "/";
-		return pathname.startsWith(href);
+	useEffect(() => {
+		const stored = loadCollapsedGroups(window.localStorage);
+		if (stored.length > 0) setCollapsedGroupIds(new Set(stored));
+	}, []);
+
+	const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+	const toggleGroup = (groupId: string) => {
+		setCollapsedGroupIds((current) => {
+			const next = new Set(current);
+			if (next.has(groupId)) next.delete(groupId);
+			else next.add(groupId);
+			saveCollapsedGroups(window.localStorage, [...next]);
+			return next;
+		});
 	};
+
+	const closeMobile = () => setMobileOpen(false);
 
 	const nav = (
 		<nav className="flex flex-col gap-1 px-3 py-2 overflow-y-auto flex-1">
-			{navItems.map((item) => {
-				const active = isActive(item.href);
-				const Icon = item.icon;
+			<NavLink
+				item={DASHBOARD_NAV_ITEM}
+				active={isActive(DASHBOARD_NAV_ITEM.href)}
+				onNavigate={closeMobile}
+			/>
+			<div className="mx-1 my-2 border-t" style={{ borderColor: "rgba(255, 255, 255, 0.1)" }} />
+			{DAILY_NAV_ITEMS.map((item) => (
+				<NavLink
+					key={item.href}
+					item={item}
+					active={isActive(item.href)}
+					onNavigate={closeMobile}
+				/>
+			))}
+			<div className="mx-1 my-2 border-t" style={{ borderColor: "rgba(255, 255, 255, 0.1)" }} />
+			{NAV_GROUPS.map((group) => {
+				const collapsed = collapsedGroupIds.has(group.id);
 				return (
-					<Link
-						key={item.href}
-						href={item.href}
-						onClick={() => setMobileOpen(false)}
-						className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors"
-						style={{
-							backgroundColor: active ? "var(--color-sidebar-active)" : "transparent",
-							color: active ? "var(--color-primary-foreground)" : "var(--color-sidebar-text)",
-						}}
-					>
-						<Icon size={18} />
-						<span>{item.label}</span>
-					</Link>
+					<div key={group.id}>
+						<button
+							type="button"
+							onClick={() => toggleGroup(group.id)}
+							className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide"
+							style={{ color: "var(--color-sidebar-text)" }}
+							aria-expanded={!collapsed}
+						>
+							<span>{group.label}</span>
+							<ChevronDown
+								size={14}
+								style={{ transform: collapsed ? "rotate(-90deg)" : undefined }}
+							/>
+						</button>
+						{!collapsed &&
+							group.items.map((item) => (
+								<NavLink
+									key={item.href}
+									item={item}
+									active={isActive(item.href)}
+									onNavigate={closeMobile}
+								/>
+							))}
+					</div>
 				);
 			})}
 		</nav>
@@ -56,9 +123,9 @@ export function Sidebar() {
 				<button
 					type="button"
 					className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-					onClick={() => setMobileOpen(false)}
-					onKeyDown={(e) => {
-						if (e.key === "Escape") setMobileOpen(false);
+					onClick={closeMobile}
+					onKeyDown={(event) => {
+						if (event.key === "Escape") closeMobile();
 					}}
 					aria-label="Close navigation overlay"
 				/>
@@ -74,7 +141,7 @@ export function Sidebar() {
 					<Logo />
 					<button
 						type="button"
-						onClick={() => setMobileOpen(false)}
+						onClick={closeMobile}
 						className="mr-3 rounded-md p-1 lg:hidden"
 						style={{ color: "var(--color-sidebar-text)" }}
 						aria-label="Close navigation"
