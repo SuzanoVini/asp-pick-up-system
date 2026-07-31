@@ -9,7 +9,7 @@ interface StatCardProps {
 
 export function StatCard({ label, value, icon: Icon, color = "text-gray-600" }: StatCardProps) {
 	return (
-		<div className="rounded-lg border border-gray-200 bg-white p-4">
+		<div className="motif-card motif-hover-lift motif-fade-in p-4">
 			<div className="flex items-center justify-between">
 				<div>
 					<p className="text-sm font-medium text-gray-500">{label}</p>
