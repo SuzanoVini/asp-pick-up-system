@@ -36,7 +36,7 @@ export function StaffList({ staffMembers }: { staffMembers: Staff[] }) {
 					{r.capabilities.map((c) => (
 						<span
 							key={c}
-							className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium capitalize text-indigo-800"
+							className="inline-flex items-center rounded-full bg-[#e6d9c7] px-2.5 py-0.5 text-xs font-medium capitalize text-[#7a2e0e]"
 						>
 							{c}
 						</span>

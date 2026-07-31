@@ -24,7 +24,12 @@ export function TodaySummary({
 			<StatCard label="Present" value={presentCount} icon={UserCheck} color="text-green-500" />
 			<StatCard label="Absent" value={absentCount} icon={UserX} color="text-red-500" />
 			<StatCard label="Drop-off" value={dropOffCount} icon={Truck} color="text-gray-500" />
-			<StatCard label="Total Expected" value={totalExpected} icon={Users} color="text-indigo-500" />
+			<StatCard
+				label="Total Expected"
+				value={totalExpected}
+				icon={Users}
+				color="text-[var(--color-primary)]"
+			/>
 			<StatCard
 				label="Unrouted"
 				value={unroutedCount}

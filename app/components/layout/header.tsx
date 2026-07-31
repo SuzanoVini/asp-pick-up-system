@@ -33,7 +33,7 @@ export function Header() {
 	return (
 		<header
 			className="flex h-14 items-center border-b px-6 lg:px-8"
-			style={{ borderColor: "#e5e7eb" }}
+			style={{ borderColor: "var(--color-gray-200)" }}
 		>
 			<h1 className="text-lg font-semibold pl-10 lg:pl-0">{title}</h1>
 		</header>

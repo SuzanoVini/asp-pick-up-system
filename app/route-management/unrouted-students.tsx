@@ -37,7 +37,7 @@ export function UnroutedStudents({ students }: UnroutedStudentsProps) {
 						<span className="font-medium text-gray-900">{s.name}</span>
 						<span className="text-gray-500">{s.schoolName}</span>
 						{s.needsBooster && (
-							<span className="rounded bg-purple-100 px-1 text-[10px] font-medium text-purple-700">
+							<span className="rounded bg-[#e6d9c7] px-1 text-[10px] font-medium text-[#7a2e0e]">
 								Booster
 							</span>
 						)}

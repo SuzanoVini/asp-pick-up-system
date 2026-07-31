@@ -68,7 +68,7 @@ export function WaitlistList({ entries }: { entries: WaitlistEntry[] }) {
 								e.stopPropagation();
 								handleStatusChange(r.id, "offered");
 							}}
-							className="rounded px-2 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+							className="rounded px-2 py-1 text-xs bg-[#f3ece0] text-[#7a2e0e] hover:bg-[#e6d9c7]"
 						>
 							Offer
 						</button>

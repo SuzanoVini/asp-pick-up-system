@@ -39,7 +39,7 @@ export default function LoginPage() {
 				className="w-full max-w-sm rounded-lg border p-8"
 				style={{
 					backgroundColor: "white",
-					borderColor: "#e5e7eb",
+					borderColor: "var(--color-gray-200)",
 					boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
 				}}
 			>
@@ -55,9 +55,9 @@ export default function LoginPage() {
 					<div
 						className="mb-4 rounded-md px-4 py-3 text-sm"
 						style={{
-							backgroundColor: "#fef2f2",
+							backgroundColor: "var(--color-red-50)",
 							color: "var(--color-error)",
-							border: "1px solid #fecaca",
+							border: "1px solid var(--color-red-200)",
 						}}
 					>
 						{error}
@@ -78,7 +78,7 @@ export default function LoginPage() {
 							autoComplete="email"
 							className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
 							style={{
-								borderColor: "#d1d5db",
+								borderColor: "var(--color-gray-300)",
 							}}
 						/>
 					</div>
@@ -96,7 +96,7 @@ export default function LoginPage() {
 							autoComplete="current-password"
 							className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
 							style={{
-								borderColor: "#d1d5db",
+								borderColor: "var(--color-gray-300)",
 							}}
 						/>
 					</div>
