@@ -223,6 +223,38 @@ describe("route management migrations in PostgreSQL", () => {
 		await db.close();
 	});
 
+	it("rejects an authenticated user with no profile row from owner-only and staff RPCs", async () => {
+		const { db, planId } = await seedThreeStudentRoute();
+		const noProfile = "10000000-0000-4000-8000-000000000099";
+		await db.exec(`
+			RESET ROLE;
+			INSERT INTO auth.users(id, email) VALUES ('${noProfile}', 'noprofile@example.test');
+			SELECT set_config('request.jwt.claim.sub', '${noProfile}', false);
+			SET ROLE authenticated;
+		`);
+
+		await expectSqlFailure(db, `SELECT public.create_route_lane('${planId}');`, "Not authorized");
+		await expectSqlFailure(
+			db,
+			`SELECT public.persist_materialized_attendance_and_sync_plan('${date}', jsonb_build_array(
+				jsonb_build_object('student_id', '${ids.student}', 'status', 'A', 'modified_by', 'system')
+			));`,
+			"Not authorized",
+		);
+		await expectSqlFailure(
+			db,
+			`SELECT public.save_attendance_override_and_sync_plan('${ids.student}', '${date}', 'A', NULL);`,
+			"Not authorized",
+		);
+
+		await db.exec("RESET ROLE");
+		const lanes = await db.query<{ count: number }>(
+			`SELECT COUNT(*)::integer AS count FROM asp_routes WHERE date = '${date}'`,
+		);
+		expect(lanes.rows[0].count).toBe(1);
+		await db.close();
+	});
+
 	it("keeps seat_number stable for remaining stops when a stop is removed", async () => {
 		const { db } = await seedThreeStudentRoute();
 
